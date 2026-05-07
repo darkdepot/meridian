@@ -34,8 +34,8 @@ const AMP_ALLOWED_MCP_TOOLS: readonly string[] = [
 export const ampAdapter: AgentAdapter = {
   name: "amp",
 
-  getSessionId(_c: Context): string | undefined {
-    return undefined
+  getSessionId(c: Context): string | undefined {
+    return c.req.header("x-amp-thread-id")
   },
 
   extractWorkingDirectory(_body: any): string | undefined {
