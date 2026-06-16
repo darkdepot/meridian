@@ -15,7 +15,7 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = meridianPackages.${pkgs.system}.meridian;
+      default = meridianPackages.${pkgs.stdenv.hostPlatform.system}.meridian;
       description = "The Meridian package to use.";
     };
 
