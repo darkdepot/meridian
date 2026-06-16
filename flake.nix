@@ -20,40 +20,56 @@
 
   outputs =
     inputs@{
-      self,
-      nixpkgs,
-      systems,
       bun2nix,
       flake-parts,
+      nixpkgs,
+      systems,
+      ...
     }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = import systems;
+    flake-parts.lib.mkFlake { inherit inputs; } (
+      {
+        moduleWithSystem,
+        self,
+        withSystem,
+        ...
+      }:
+      {
+        systems = import systems;
 
-      perSystem =
-        {
-          config,
-          pkgs,
-          system,
-          ...
-        }:
-        {
-          _module.args.pkgs = import nixpkgs {
-            inherit system;
-            overlays = [ bun2nix.overlays.default ];
+        perSystem =
+          {
+            config,
+            pkgs,
+            system,
+            ...
+          }:
+          {
+            _module.args.pkgs = import nixpkgs {
+              inherit system;
+              overlays = [ bun2nix.overlays.default ];
+            };
+
+            packages = {
+              default = config.packages.meridian;
+              meridian = pkgs.callPackage ./nix/package.nix { };
+            };
           };
 
-          packages = {
-            default = config.packages.meridian;
-            meridian = pkgs.callPackage ./nix/package.nix { };
+        flake = {
+          overlays = {
+            default = self.overlays.meridian;
+            meridian =
+              _: prev:
+              withSystem prev.stdenv.hostPlatform.system ({ self', ... }: { inherit (self'.packages) meridian; });
+          };
+
+          homeManagerModules = {
+            default = self.homeManagerModules.meridian;
+            meridian = moduleWithSystem (
+              { self', ... }: import ./nix/hm-module.nix { inherit (self'.packages) meridian; }
+            );
           };
         };
-
-      flake = {
-        overlays.default = final: _: {
-          inherit (self.packages.${final.stdenv.hostPlatform.system}) meridian;
-        };
-
-        homeManagerModules.default = import ./nix/hm-module.nix { meridianPackages = self.packages; };
-      };
-    };
+      }
+    );
 }

@@ -1,10 +1,5 @@
-{ meridianPackages }:
-{
-  config,
-  lib,
-  pkgs,
-  ...
-}:
+{ meridian }:
+{ config, lib, ... }:
 let
   cfg = config.services.meridian;
   pkg = cfg.package;
@@ -15,7 +10,7 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = meridianPackages.${pkgs.stdenv.hostPlatform.system}.meridian;
+      default = meridian;
       description = "The Meridian package to use.";
     };
 
