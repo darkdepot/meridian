@@ -33,12 +33,8 @@ stdenvNoCC.mkDerivation {
     runHook preInstall
 
     mkdir -p $out/lib/meridian
-    cp -r dist $out/lib/meridian/
-    cp -r node_modules $out/lib/meridian/
-    cp -r plugin $out/lib/meridian/
-    cp package.json $out/lib/meridian/
+    cp -r dist node_modules plugin package.json $out/lib/meridian/
 
-    mkdir -p $out/bin
     makeWrapper ${lib.getExe nodejs_22} $out/bin/meridian \
       --add-flags "$out/lib/meridian/dist/cli.js"
 
