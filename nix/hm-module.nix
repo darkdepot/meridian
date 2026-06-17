@@ -2,7 +2,6 @@
 { config, lib, ... }:
 let
   cfg = config.services.meridian;
-  pkg = cfg.package;
 in
 {
   options.services.meridian = {
@@ -74,7 +73,7 @@ in
 
     opencode.pluginPath = lib.mkOption {
       type = lib.types.str;
-      default = "${pkg}/lib/meridian/plugin/meridian.ts";
+      default = "${cfg.package}/lib/meridian/plugin/meridian.ts";
       readOnly = true;
       description = "Nix store path to the OpenCode plugin file. Use this to reference the plugin in your OpenCode config.";
     };
@@ -86,7 +85,7 @@ in
 
       Service = {
         Type = "exec";
-        ExecStart = lib.getExe pkg;
+        ExecStart = lib.getExe cfg.package;
         Restart = "on-failure";
         RestartSec = 5;
 
