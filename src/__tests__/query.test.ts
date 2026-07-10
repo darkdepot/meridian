@@ -206,6 +206,17 @@ describe("buildQueryOptions", () => {
     expect((result.options as any).tools).toEqual([])
   })
 
+  it("preserves only StructuredOutput when native schema output is requested", () => {
+    const result = buildQueryOptions(makeContext({
+      passthrough: true,
+      outputFormat: {
+        type: "json_schema",
+        schema: { type: "object", properties: { answer: { type: "string" } } },
+      },
+    }))
+    expect(result.options.tools).toEqual(["StructuredOutput"])
+  })
+
   it("strips the catalog even when passthroughMcp tools are present", () => {
     const mockPassthroughMcp = {
       toolNames: ["mcp__passthrough__custom_tool"],

@@ -261,10 +261,11 @@ export function buildQueryOptions(ctx: QueryContext, abortController?: AbortCont
             // SDK built-ins (Read/Write/Bash/etc.) — those are the calling
             // client's responsibility. `disallowedTools` below blocks
             // invocation at runtime; it does NOT remove the definitions
-            // from the upstream payload. Setting `tools: []` elides the
-            // catalog from the request body. Closes #489 (diagnosis by
-            // @albe-jj).
-            tools: [],
+            // from the upstream payload. Native schema output is implemented
+            // by Claude Code's internal StructuredOutput tool, so preserve
+            // that one tool when outputFormat is active and elide the rest of
+            // the catalog. Closes #489 (diagnosis by @albe-jj).
+            tools: outputFormat ? ["StructuredOutput"] : [],
             // Explicitly disable claude-code's default settings loading.
             // Without this, claude-code falls back to its built-in default
             // (load user + project + local) and slurps CLAUDE.md from the

@@ -100,6 +100,7 @@ describe("native structured output", () => {
 
     expect(response.status).toBe(200)
     expect(capturedOptions.outputFormat).toEqual({ type: "json_schema", schema })
+    expect(capturedOptions.tools).toEqual(["StructuredOutput"])
     expect(body.stop_reason).toBe("end_turn")
     expect(body.content).toEqual([{ type: "text", text: '{"answer":"grounded"}' }])
     expect(body.usage).toEqual({ input_tokens: 12, output_tokens: 7 })
@@ -115,6 +116,7 @@ describe("native structured output", () => {
     expect(response.status).toBe(200)
     expect(response.headers.get("content-type")).toContain("text/event-stream")
     expect(capturedOptions.outputFormat).toEqual({ type: "json_schema", schema })
+    expect(capturedOptions.tools).toEqual(["StructuredOutput"])
     expect(body).toContain("event: message_start")
     expect(body).toContain('"text":"{\\"answer\\":\\"streamed\\"}"')
     expect(body).toContain('"stop_reason":"end_turn"')
