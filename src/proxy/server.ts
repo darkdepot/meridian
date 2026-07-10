@@ -465,7 +465,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
           )
         }
 
-        const parsedOutputFormat = parseOutputFormat(body.output_config)
+        const parsedOutputFormat = parseOutputFormat(body.output_config, body.tools)
         if (!parsedOutputFormat.ok) {
           return c.json(
             { type: "error", error: { type: "invalid_request_error", message: parsedOutputFormat.message } },

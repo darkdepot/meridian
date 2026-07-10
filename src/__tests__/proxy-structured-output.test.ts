@@ -55,7 +55,11 @@ function resultMessage(structuredOutput: unknown) {
   }
 }
 
-function request(stream: boolean, outputConfig: unknown = { format: { type: "json_schema", schema } }) {
+function request(
+  stream: boolean,
+  outputConfig: unknown = { format: { type: "json_schema", schema } },
+  extra: Record<string, unknown> = {}
+) {
   return new Request("http://localhost/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -65,6 +69,7 @@ function request(stream: boolean, outputConfig: unknown = { format: { type: "jso
       stream,
       messages: [{ role: "user", content: "Return an answer." }],
       output_config: outputConfig,
+      ...extra,
     }),
   })
 }
@@ -114,6 +119,23 @@ describe("native structured output", () => {
     expect(body).toContain('"text":"{\\"answer\\":\\"streamed\\"}"')
     expect(body).toContain('"stop_reason":"end_turn"')
     expect(body).toContain("event: message_stop")
+  })
+
+  it("rejects requests that combine tools with output_config.format", async () => {
+    const app = createProxyServer({ port: 0, host: "127.0.0.1" }).app
+
+    const tools = [{
+      name: "get_weather",
+      description: "Get the weather",
+      input_schema: { type: "object", properties: {}, additionalProperties: false },
+    }]
+    const response = await app.fetch(request(false, undefined, { tools }))
+    const body = await response.json() as any
+
+    expect(response.status).toBe(400)
+    expect(body.error.type).toBe("invalid_request_error")
+    expect(body.error.message).toContain("tools")
+    expect(queryCalls).toBe(0)
   })
 
   it("rejects malformed output formats before starting an SDK query", async () => {
