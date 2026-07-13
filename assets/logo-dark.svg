@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Meridian Seam Exchange mark for dark backgrounds</title>
+  <desc id="desc">Two routes exchange lanes across a deliberate central gap.</desc>
+  <path d="M3 6H6.75C8.3 6 9 8.4 10.125 9.75 M13.875 14.25C15 15.6 15.7 18 17.25 18H21" stroke="#5B82FF" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M3 18H6.75C8.3 18 9 15.6 10.125 14.25 M13.875 9.75C15 8.4 15.7 6 17.25 6H21" stroke="#F07955" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

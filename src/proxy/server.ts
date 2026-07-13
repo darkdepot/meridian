@@ -54,7 +54,7 @@ import { mapModelToClaudeModel, resolveClaudeExecutableAsync, resolveSdkModelDef
 import type { AnthropicSseEvent } from "./openai"
 import { translateOpenAiToAnthropic, translateAnthropicToOpenAi, buildModelList, createSseTranslator } from "./openai"
 import { extractAdvisorModel, getLastUserMessage, stripAdvisorTools, stripNonStandardStreamFields, consolidateMultimodalOntoLastUser, MULTIMODAL_TYPES, buildToolUseIndex, describeToolCall } from "./messages"
-import { requireAuth, authEnabled } from "./auth"
+import { requireAuth, authEnabled, createBrowserSessionCookie } from "./auth"
 import { detectAdapter } from "./adapters/detect"
 import { buildQueryOptions, type QueryContext } from "./query"
 import { normalizeEffort } from "./effort"
@@ -403,6 +403,13 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
   app.use("/settings/*", requireAuth)
   app.use("/settings", requireAuth)
   app.use("/auth/*", requireAuth)
+
+  app.post("/auth/browser", (c) => {
+    const browserSessionCookie = createBrowserSessionCookie(c.req.url)
+    if (browserSessionCookie) c.header("Set-Cookie", browserSessionCookie)
+    c.header("Cache-Control", "no-store")
+    return c.json({ success: true })
+  })
 
   app.get("/", (c) => {
     // API clients get JSON, browsers get the landing page

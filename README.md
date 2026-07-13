@@ -1,12 +1,16 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="Meridian" width="800"/>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/banner.svg">
+    <img src="assets/banner.svg" alt="Meridian — Any harness. One clean endpoint." width="800">
+  </picture>
 </p>
 
 <p align="center">
-  <a href="https://github.com/rynfar/meridian/releases"><img src="https://img.shields.io/github/v/release/rynfar/meridian?style=flat-square&color=6366f1&label=release" alt="Release"></a>
-  <a href="https://www.npmjs.com/package/@rynfar/meridian"><img src="https://img.shields.io/npm/v/@rynfar/meridian?style=flat-square&color=8b5cf6&label=npm" alt="npm"></a>
-  <a href="#"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-a78bfa?style=flat-square" alt="Platform"></a>
-  <a href="#"><img src="https://img.shields.io/badge/license-MIT-c4b5fd?style=flat-square" alt="License"></a>
+  <a href="https://github.com/rynfar/meridian/releases"><img src="https://img.shields.io/github/v/release/rynfar/meridian?style=flat-square&color=1E5EFF&label=release" alt="Release"></a>
+  <a href="https://www.npmjs.com/package/@rynfar/meridian"><img src="https://img.shields.io/npm/v/@rynfar/meridian?style=flat-square&color=DE5B36&label=npm" alt="npm"></a>
+  <a href="#"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-5B82FF?style=flat-square" alt="Platform"></a>
+  <a href="#"><img src="https://img.shields.io/badge/license-MIT-F07955?style=flat-square" alt="License"></a>
   <a href="https://discord.gg/jP2a2Z92NZ"><img src="https://img.shields.io/badge/discord-join-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
@@ -151,7 +155,11 @@ xdg.configFile."opencode/opencode.json".text = builtins.toJSON {
 The Claude Code SDK provides programmatic access to Claude. But your favorite coding tools expect an Anthropic API endpoint. Meridian bridges that gap — it runs locally, accepts standard API requests, and routes them through the SDK. Claude Code does the heavy lifting; Meridian translates the output.
 
 <p align="center">
-  <img src="assets/how-it-works.svg" alt="How Meridian works" width="920"/>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/how-it-works-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/how-it-works.svg">
+    <img src="assets/how-it-works.svg" alt="How Meridian routes a request" width="920">
+  </picture>
 </p>
 
 ## Features

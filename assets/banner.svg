@@ -1,46 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Meridian — Any harness. One clean endpoint.</title>
+  <desc id="desc">Meridian brand banner with the blue and vermilion Seam Exchange mark.</desc>
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f0b1a"/>
-      <stop offset="100%" stop-color="#1a1030"/>
-    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" stroke="#171A18" stroke-opacity=".045"/>
+    </pattern>
+    <clipPath id="frame"><rect width="1200" height="400" rx="20"/></clipPath>
   </defs>
 
-  <rect width="1200" height="400" rx="16" fill="url(#bg)"/>
+  <g clip-path="url(#frame)">
+    <rect width="1200" height="400" fill="#F3EFE6"/>
+    <rect width="1200" height="400" fill="url(#grid)"/>
+    <circle cx="1130" cy="-32" r="210" fill="#1E5EFF" opacity=".045"/>
+    <circle cx="1045" cy="432" r="170" fill="#DE5B36" opacity=".05"/>
+    <path d="M938 0V400" stroke="#171A18" stroke-opacity=".07"/>
+    <path d="M958 72H1128M958 328H1128" stroke="#171A18" stroke-opacity=".08"/>
+  </g>
+  <rect x=".75" y=".75" width="1198.5" height="398.5" rx="19.25" stroke="#171A18" stroke-opacity=".12" stroke-width="1.5"/>
 
-  <!-- Subtle dot grid -->
-  <g opacity="0.05" fill="#a78bfa">
-    <circle cx="100" cy="100" r="1.5"/><circle cx="200" cy="100" r="1.5"/><circle cx="300" cy="100" r="1.5"/>
-    <circle cx="100" cy="200" r="1.5"/><circle cx="200" cy="200" r="1.5"/><circle cx="300" cy="200" r="1.5"/>
-    <circle cx="100" cy="300" r="1.5"/><circle cx="200" cy="300" r="1.5"/><circle cx="300" cy="300" r="1.5"/>
-    <circle cx="900" cy="100" r="1.5"/><circle cx="1000" cy="100" r="1.5"/><circle cx="1100" cy="100" r="1.5"/>
-    <circle cx="900" cy="200" r="1.5"/><circle cx="1000" cy="200" r="1.5"/><circle cx="1100" cy="200" r="1.5"/>
-    <circle cx="900" cy="300" r="1.5"/><circle cx="1000" cy="300" r="1.5"/><circle cx="1100" cy="300" r="1.5"/>
+  <g transform="translate(72 56) scale(12)">
+    <path d="M3 6H6.75C8.3 6 9 8.4 10.125 9.75 M13.875 14.25C15 15.6 15.7 18 17.25 18H21" stroke="#1E5EFF" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M3 18H6.75C8.3 18 9 15.6 10.125 14.25 M13.875 9.75C15 8.4 15.7 6 17.25 6H21" stroke="#DE5B36" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
 
-  <!-- Logo mark — V2 full globe -->
-  <g transform="translate(380, 90)">
-    <!-- Meridian axis -->
-    <line x1="80" y1="8" x2="80" y2="192" stroke="#8B7CF6" stroke-width="5" stroke-linecap="round"/>
-    <!-- Latitude arcs — outer -->
-    <path d="M28 50 A60 60 0 0 1 132 50" fill="none" stroke="#C4B5FD" stroke-width="2.5" opacity="0.4"/>
-    <path d="M28 150 A60 60 0 0 0 132 150" fill="none" stroke="#C4B5FD" stroke-width="2.5" opacity="0.4"/>
-    <!-- Latitude arcs — inner -->
-    <path d="M38 78 A46 46 0 0 1 122 78" fill="none" stroke="#C4B5FD" stroke-width="1.5" opacity="0.2"/>
-    <path d="M38 122 A46 46 0 0 0 122 122" fill="none" stroke="#C4B5FD" stroke-width="1.5" opacity="0.2"/>
-    <!-- Poles -->
-    <circle cx="80" cy="8" r="8" fill="#C4B5FD"/>
-    <circle cx="80" cy="192" r="8" fill="#C4B5FD"/>
-    <!-- Center node -->
-    <circle cx="80" cy="100" r="8" fill="#8B7CF6"/>
+  <text x="390" y="105" font-family="'Instrument Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="650" letter-spacing="2.8" fill="#1E5EFF">LOCAL PROTOCOL BRIDGE</text>
+  <text x="386" y="203" font-family="'Instrument Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="88" font-weight="650" letter-spacing="-3" fill="#171A18">Meridian</text>
+  <text x="392" y="253" font-family="'Instrument Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="25" font-weight="520" fill="#4A504C">Any harness. One clean endpoint.</text>
+  <path d="M392 282H824" stroke="#171A18" stroke-opacity=".14"/>
+  <text x="392" y="317" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace" font-size="13" fill="#68706B">ANTHROPIC API</text>
+  <circle cx="523" cy="312" r="3" fill="#DE5B36"/>
+  <text x="539" y="317" font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace" font-size="13" fill="#68706B">CLAUDE CODE SDK</text>
+
+  <g font-family="'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace" font-size="11" letter-spacing="1.3" fill="#68706B">
+    <text x="974" y="97">INPUT</text>
+    <text x="974" y="353">OUTPUT</text>
   </g>
-
-  <!-- Wordmark -->
-  <text x="540" y="195" font-family="Inter, -apple-system, 'SF Pro Display', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="72" font-weight="700" fill="#e0e7ff" letter-spacing="10">MERIDIAN</text>
-
-  <!-- Tagline -->
-  <text x="543" y="240" font-family="Inter, -apple-system, 'SF Pro Display', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#8B7CF6" letter-spacing="3">HARNESS CLAUDE, YOUR WAY.</text>
-
-  <!-- Subtitle -->
-  <text x="543" y="278" font-family="Inter, -apple-system, 'SF Pro Display', 'Segoe UI', Helvetica, Arial, sans-serif" font-size="14" font-weight="300" fill="rgba(255,255,255,0.35)">Local Anthropic API powered by the Claude Code SDK</text>
+  <path d="M974 129H1032C1050 129 1064 148 1077 166" stroke="#1E5EFF" stroke-width="7" stroke-linecap="round"/>
+  <path d="M974 297H1032C1050 297 1064 278 1077 260" stroke="#DE5B36" stroke-width="7" stroke-linecap="round"/>
+  <path d="M1108 234C1121 216 1135 197 1153 197H1180" stroke="#1E5EFF" stroke-width="7" stroke-linecap="round"/>
+  <path d="M1108 192C1121 174 1135 155 1153 155H1180" stroke="#DE5B36" stroke-width="7" stroke-linecap="round"/>
 </svg>

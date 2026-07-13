@@ -1,15 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <!-- Meridian axis -->
-  <line x1="256" y1="40" x2="256" y2="472" stroke="#8B7CF6" stroke-width="12" stroke-linecap="round"/>
-  <!-- Latitude arcs — outer pair -->
-  <path d="M110 130 A166 166 0 0 1 402 130" fill="none" stroke="#C4B5FD" stroke-width="7" opacity="0.4"/>
-  <path d="M110 382 A166 166 0 0 0 402 382" fill="none" stroke="#C4B5FD" stroke-width="7" opacity="0.4"/>
-  <!-- Latitude arcs — inner pair -->
-  <path d="M132 210 A136 136 0 0 1 380 210" fill="none" stroke="#C4B5FD" stroke-width="5" opacity="0.25"/>
-  <path d="M132 302 A136 136 0 0 0 380 302" fill="none" stroke="#C4B5FD" stroke-width="5" opacity="0.25"/>
-  <!-- Poles -->
-  <circle cx="256" cy="40" r="22" fill="#C4B5FD"/>
-  <circle cx="256" cy="472" r="22" fill="#C4B5FD"/>
-  <!-- Center node -->
-  <circle cx="256" cy="256" r="20" fill="#8B7CF6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Meridian Seam Exchange mark</title>
+  <desc id="desc">Two routes exchange lanes across a deliberate central gap.</desc>
+  <path d="M3 6H6.75C8.3 6 9 8.4 10.125 9.75 M13.875 14.25C15 15.6 15.7 18 17.25 18H21" stroke="#1E5EFF" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M3 18H6.75C8.3 18 9 15.6 10.125 14.25 M13.875 9.75C15 8.4 15.7 6 17.25 6H21" stroke="#DE5B36" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

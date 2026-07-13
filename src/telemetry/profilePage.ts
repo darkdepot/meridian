@@ -4,6 +4,7 @@
  */
 
 import { profileBarCss, profileBarHtml, profileBarJs, themeCss } from "./profileBar"
+import { themeHeadHtml } from "./theme"
 import { WINDOW_LABELS } from "./profileUsage"
 
 export const profilePageHtml = `<!DOCTYPE html>
@@ -11,125 +12,140 @@ export const profilePageHtml = `<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Meridian — Profiles</title>
+<title>Profiles · Meridian</title>
+${themeHeadHtml}
 <style>
   ${themeCss}
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-         background: var(--bg); color: var(--text); padding: 0; line-height: 1.5; }
-  .container { max-width: 800px; margin: 0 auto; padding: 24px; }
-  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
-  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  body {
+    min-width: 0; min-height: 100vh; overflow-x: hidden;
+    font-family: var(--font-sans); background: var(--canvas); color: var(--text-primary);
+    line-height: 1.5; -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font: inherit; }
+  button, summary, select { -webkit-tap-highlight-color: transparent; }
+  .container { width: min(100%, 1080px); margin: 0 auto; padding: 40px 32px 64px; }
+  .page-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: end; margin-bottom: 32px; }
+  .eyebrow, .section-title { color: var(--text-tertiary); font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+  h1 { margin-top: 6px; font-size: 30px; line-height: 1.15; letter-spacing: -.025em; font-weight: 650; text-wrap: balance; }
+  .subtitle { max-width: 620px; margin-top: 8px; color: var(--text-secondary); font-size: 14px; text-wrap: pretty; }
+  .header-note { max-width: 240px; color: var(--text-tertiary); font-size: 12px; text-align: right; }
   .section { margin-bottom: 32px; }
-  .section-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase;
-                   letter-spacing: 0.5px; margin-bottom: 12px; }
+  .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+  .section-count { color: var(--text-tertiary); font-family: var(--font-mono); font-size: 11px; }
 
+  .profile-list { display: grid; gap: 12px; }
   .profile-card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-    padding: 20px; margin-bottom: 12px; transition: border-color 0.2s;
+    position: relative; min-width: 0; overflow: hidden; padding: 20px;
+    background: var(--panel); border: 1px solid var(--line-soft); border-radius: 12px;
+    transition: border-color 160ms cubic-bezier(.23,1,.32,1), background-color 160ms cubic-bezier(.23,1,.32,1);
   }
-  .profile-card.active { border-color: var(--accent); }
-  .profile-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-  .profile-name { font-size: 16px; font-weight: 600; }
-  .profile-badge {
-    font-size: 10px; padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
-    letter-spacing: 0.5px; font-weight: 500;
+  .profile-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: transparent; }
+  .profile-card.active { border-color: var(--line-strong); }
+  .profile-card.active::before { background: var(--brand); }
+  .profile-card-header { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .profile-name { margin-right: 4px; font-size: 17px; font-weight: 650; letter-spacing: -.01em; overflow-wrap: anywhere; }
+  .profile-badge, .status-badge {
+    display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px;
+    border: 1px solid var(--line-soft); border-radius: 6px; color: var(--text-tertiary);
+    background: var(--panel-inset); font-size: 10px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase;
   }
-  .badge-active { background: rgba(88,166,255,0.15); color: var(--accent); }
-  .badge-type { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
-  .profile-details {
-    display: grid; grid-template-columns: 120px 1fr; gap: 6px 16px; font-size: 13px;
+  .badge-active { border-color: color-mix(in srgb, var(--brand) 30%, var(--line-soft)); color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, var(--panel)); }
+  .status-authenticated { color: var(--success); }
+  .status-authenticated::before, .status-attention::before { content: ""; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: currentColor; }
+  .status-attention { color: var(--warning); }
+  .profile-body { display: grid; grid-template-columns: minmax(190px, .72fr) minmax(0, 1.6fr); gap: 24px; align-items: start; }
+  .profile-body-single { grid-template-columns: 1fr; }
+  .profile-details { display: grid; grid-template-columns: minmax(72px, auto) minmax(0, 1fr); gap: 8px 16px; font-size: 12px; }
+  .detail-label { color: var(--text-tertiary); }
+  .detail-value { min-width: 0; color: var(--text-secondary); font-family: var(--font-mono); overflow-wrap: anywhere; }
+  .status-ok { color: var(--success); }
+  .status-err { color: var(--danger); }
+  .profile-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .switch-btn, .copy-btn {
+    min-height: 44px; border-radius: 8px; cursor: pointer;
+    transition: color 140ms cubic-bezier(.23,1,.32,1), border-color 140ms cubic-bezier(.23,1,.32,1), background-color 140ms cubic-bezier(.23,1,.32,1), transform 100ms cubic-bezier(.23,1,.32,1);
   }
-  .detail-label { color: var(--muted); }
-  .detail-value { font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; font-size: 12px; }
-  .status-ok { color: var(--green); }
-  .status-err { color: var(--red); }
-  .switch-btn {
-    margin-top: 12px; padding: 6px 16px; font-size: 12px; font-weight: 500;
-    background: var(--bg); color: var(--accent); border: 1px solid var(--accent);
-    border-radius: 6px; cursor: pointer; transition: all 0.15s;
-  }
-  .switch-btn:hover { background: rgba(88,166,255,0.1); }
-  .switch-btn:disabled { opacity: 0.4; cursor: default; }
-  .switch-btn.current { border-color: var(--border); color: var(--muted); cursor: default; }
+  .switch-btn { padding: 0 16px; color: var(--brand); background: var(--panel-inset); border: 1px solid var(--line); font-size: 12px; font-weight: 600; }
+  .switch-btn:hover { border-color: var(--brand); background: color-mix(in srgb, var(--brand) 8%, var(--panel-inset)); }
+  .switch-btn:active, .copy-btn:active { transform: scale(.97); }
+  .switch-btn:disabled { opacity: .55; cursor: default; transform: none; }
+  .switch-btn.current { color: var(--text-tertiary); border-color: var(--line-soft); }
+  button:focus-visible, summary:focus-visible, select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
-  .empty-state {
-    text-align: center; padding: 48px; color: var(--muted);
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  }
-  .empty-state h2 { font-size: 16px; margin-bottom: 8px; color: var(--text); }
+  .auth-warning { margin-top: 14px; padding: 10px 12px; border-left: 2px solid var(--warning); background: color-mix(in srgb, var(--warning) 8%, var(--panel)); color: var(--text-secondary); font-size: 12px; }
+  .auth-warning strong { color: var(--warning); }
+  .login-command { display: flex; min-width: 0; align-items: stretch; gap: 6px; margin-top: 14px; }
+  .command-label { align-self: center; color: var(--text-tertiary); font-size: 11px; }
+  .copy-cmd, .mono, code { font-family: var(--font-mono); }
+  .copy-cmd { min-width: 0; overflow: hidden; padding: 12px; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--panel-inset); color: var(--text-secondary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+  .copy-btn { display: inline-grid; place-items: center; flex: 0 0 44px; width: 44px; color: var(--text-secondary); background: var(--panel-inset); border: 1px solid var(--line-soft); }
+  .copy-btn:hover { border-color: var(--brand); color: var(--brand); }
+  .copy-btn.copied { color: var(--success); border-color: var(--success); }
 
-  .guide {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-    padding: 20px;
-  }
-  .guide h3 { font-size: 14px; margin-bottom: 12px; }
-  .guide ol { padding-left: 20px; font-size: 13px; }
-  .guide li { margin-bottom: 8px; }
-  .guide code {
-    font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; font-size: 12px;
-    background: var(--bg); padding: 2px 6px; border-radius: 4px; color: var(--purple);
-  }
-  .guide .warn {
-    margin-top: 12px; padding: 12px 16px; background: rgba(210,153,34,0.1);
-    border: 1px solid rgba(210,153,34,0.3); border-radius: 8px; font-size: 12px;
-  }
-  .guide .warn strong { color: var(--yellow); }
+  .usage-section { min-width: 0; padding-left: 24px; border-left: 1px solid var(--line-soft); }
+  .usage-section-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; color: var(--text-tertiary); font-size: 10px; font-weight: 650; letter-spacing: .1em; text-transform: uppercase; }
+  .usage-as-of { color: var(--text-tertiary); font-size: 10px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .usage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 8px; }
+  .usage-card, .usage-extra { min-width: 0; padding: 11px 12px; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--panel-inset); }
+  .usage-row, .usage-extra-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .usage-row { margin-bottom: 8px; }
+  .usage-label { min-width: 0; color: var(--text-secondary); font-size: 11px; font-weight: 550; overflow-wrap: anywhere; }
+  .usage-pct { color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .usage-bar { height: 4px; margin-bottom: 6px; overflow: hidden; border-radius: 2px; background: var(--line); }
+  .usage-fill { height: 100%; background: var(--success); transition: width 240ms cubic-bezier(.23,1,.32,1); }
+  .usage-card.status-warn .usage-pct, .usage-extra.status-warn .usage-pct { color: var(--warning); }
+  .usage-card.status-warn .usage-fill, .usage-extra.status-warn .usage-fill { background: var(--warning); }
+  .usage-card.status-high .usage-pct, .usage-extra.status-high .usage-pct { color: var(--danger); }
+  .usage-card.status-high .usage-fill, .usage-extra.status-high .usage-fill { background: var(--danger); }
+  .usage-reset { color: var(--text-tertiary); font-size: 10px; }
+  .usage-extra { margin-top: 8px; }
+  .usage-empty { padding: 10px 0; color: var(--text-tertiary); font-size: 11px; }
+  .usage-empty code { padding: 2px 5px; border-radius: 4px; background: var(--panel-inset); color: var(--text-secondary); }
 
-  .mono { font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; font-size: 12px; }
-  .copy-cmd {
-    font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; font-size: 12px;
-    background: var(--bg); padding: 4px 10px; border-radius: 4px; color: var(--purple);
-    cursor: pointer; border: 1px solid var(--border); transition: border-color 0.15s;
-  }
-  .copy-btn {
-    background: var(--bg); color: var(--muted); border: 1px solid var(--border);
-    border-radius: 4px; padding: 4px 6px; cursor: pointer; display: inline-flex;
-    align-items: center; transition: all 0.15s;
-  }
-  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+  .empty-state { padding: 48px 24px; text-align: center; color: var(--text-secondary); background: var(--panel); border: 1px solid var(--line-soft); border-radius: 12px; }
+  .empty-state h2 { margin-bottom: 8px; color: var(--text-primary); font-size: 18px; }
+  .empty-state p { font-size: 13px; }
+  .empty-command { display: inline-block; max-width: 100%; margin-top: 12px; padding: 10px 12px; overflow-wrap: anywhere; border-radius: 8px; background: var(--panel-inset); color: var(--brand); font-size: 12px; }
 
-  /* OAuth usage panel — one block per profile, mirrors pylon's quota strip. */
-  .usage-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
-  .usage-section-title {
-    font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;
-    margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+  .guide-wrap { margin-top: 8px; }
+  .guide { overflow: hidden; background: var(--panel); border: 1px solid var(--line-soft); border-radius: 12px; }
+  .guide summary { display: flex; min-height: 56px; align-items: center; justify-content: space-between; gap: 16px; padding: 0 18px; cursor: pointer; color: var(--text-primary); font-size: 13px; font-weight: 600; list-style: none; }
+  .guide summary::-webkit-details-marker { display: none; }
+  .guide summary::after { content: "+"; color: var(--text-tertiary); font-family: var(--font-mono); font-size: 18px; font-weight: 400; }
+  .guide[open] summary::after { content: "−"; }
+  .guide[open] summary { border-bottom: 1px solid var(--line-soft); }
+  .guide-content { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 20px; }
+  .guide-section h3 { margin-bottom: 8px; font-size: 13px; }
+  .guide-section p, .guide-section ol, .guide-section .commands { color: var(--text-secondary); font-size: 12px; }
+  .guide-section ol { padding-left: 18px; }
+  .guide-section li + li { margin-top: 6px; }
+  .guide code { padding: 2px 5px; border-radius: 4px; background: var(--panel-inset); color: var(--brand); font-size: 11px; overflow-wrap: anywhere; }
+  .guide .warn { grid-column: 1 / -1; padding: 12px 14px; border-left: 2px solid var(--warning); background: color-mix(in srgb, var(--warning) 8%, var(--panel)); color: var(--text-secondary); font-size: 12px; }
+  .guide .warn strong { color: var(--warning); }
+
+  @media (max-width: 720px) {
+    .container { padding: 28px 20px 48px; }
+    .page-header { grid-template-columns: 1fr; gap: 8px; margin-bottom: 24px; }
+    .header-note { max-width: none; text-align: left; }
+    .profile-body { grid-template-columns: 1fr; gap: 18px; }
+    .usage-section { padding: 18px 0 0; border-left: 0; border-top: 1px solid var(--line-soft); }
+    .guide-content { grid-template-columns: 1fr; }
+    .guide .warn { grid-column: auto; }
   }
-  .usage-as-of { font-size: 10px; color: var(--muted); text-transform: none; letter-spacing: 0; opacity: 0.7; }
-  .usage-grid {
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 8px;
+  @media (max-width: 420px) {
+    .container { padding-right: 16px; padding-left: 16px; }
+    h1 { font-size: 26px; }
+    .profile-card { padding: 16px; }
+    .profile-details { grid-template-columns: 1fr; gap: 2px; }
+    .detail-value + .detail-label { margin-top: 8px; }
+    .login-command { display: grid; grid-template-columns: minmax(0, 1fr) 44px; }
+    .command-label { grid-column: 1 / -1; }
+    .switch-btn { width: 100%; }
+    .guide-content { padding: 16px; }
   }
-  .usage-card {
-    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-    padding: 8px 10px; min-width: 0;
-  }
-  .usage-row {
-    display: flex; justify-content: space-between; align-items: baseline;
-    font-size: 11px; gap: 8px; margin-bottom: 6px;
-  }
-  .usage-label { color: var(--muted); font-weight: 500; white-space: nowrap; }
-  .usage-pct { font-family: 'SF Mono', SFMono-Regular, Consolas, monospace; font-weight: 600; font-size: 12px; }
-  .usage-bar {
-    height: 4px; background: rgba(127,127,127,0.18); border-radius: 2px; overflow: hidden;
-    margin-bottom: 4px;
-  }
-  .usage-fill { height: 100%; transition: width 0.4s ease; background: var(--green); }
-  .usage-card.status-warn .usage-fill,
-  .usage-card.status-warn .usage-pct { color: var(--yellow); }
-  .usage-card.status-warn .usage-fill { background: var(--yellow); }
-  .usage-card.status-high .usage-fill,
-  .usage-card.status-high .usage-pct { color: var(--red); }
-  .usage-card.status-high .usage-fill { background: var(--red); }
-  .usage-reset { font-size: 10px; color: var(--muted); white-space: nowrap; }
-  .usage-extra {
-    margin-top: 8px; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border);
-    border-radius: 6px; font-size: 11px;
-  }
-  .usage-extra-row { display: flex; justify-content: space-between; gap: 8px; }
-  .usage-empty {
-    font-size: 11px; color: var(--muted); padding: 6px 0; font-style: italic;
+  @media (prefers-reduced-motion: reduce) {
+    .profile-card, .switch-btn, .copy-btn, .usage-fill { transition-duration: 0ms; }
   }
 ` + profileBarCss + `
 </style>
@@ -137,49 +153,54 @@ export const profilePageHtml = `<!DOCTYPE html>
 <body>
 ` + profileBarHtml + `
 <div class="container">
-<h1>Profiles</h1>
-<div class="subtitle">Manage Claude account profiles</div>
-
-<div id="content"><div style="color:var(--muted);padding:40px;text-align:center">Loading\u2026</div></div>
-
-<div class="section" style="margin-top:32px">
-  <div class="section-title">Setup Guide</div>
-  <div class="guide">
-    <h3>How profiles work</h3>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
-      Each profile is a separate Claude account with its own login credentials.
-      Meridian stores them in isolated config directories and switches between them instantly.
-    </p>
-
-    <h3 style="margin-top:16px">Adding a new profile</h3>
-    <ol>
-      <li>Open a terminal and run: <code>meridian profile add &lt;name&gt;</code></li>
-      <li>This opens your browser for Claude login</li>
-      <li>Done \u2014 the profile is ready to use</li>
-    </ol>
-
-    <div class="warn">
-      <strong>\u26a0 Important for adding a second account:</strong> Before running
-      <code>meridian profile add</code> for a different account, sign out of claude.ai
-      in your browser first, then sign in with the other account. Claude\u2019s OAuth
-      reuses your browser session \u2014 if you\u2019re already signed in, the login will
-      silently use the same account.
-    </div>
-
-    <h3 style="margin-top:16px">Switching profiles</h3>
-    <ol>
-      <li><strong>UI:</strong> Use the dropdown at the top of this page</li>
-      <li><strong>CLI:</strong> <code>meridian profile switch &lt;name&gt;</code></li>
-      <li><strong>Per-request:</strong> Send <code>x-meridian-profile: &lt;name&gt;</code> header</li>
-    </ol>
-
-    <h3 style="margin-top:16px">Other commands</h3>
-    <div style="font-size:13px;margin-top:8px">
-      <code>meridian profile list</code> \u2014 show all profiles and auth status<br>
-      <code>meridian profile login &lt;name&gt;</code> \u2014 re-authenticate an expired profile<br>
-      <code>meridian profile remove &lt;name&gt;</code> \u2014 remove a profile
-    </div>
+<header class="page-header">
+  <div>
+    <div class="eyebrow">Account routing</div>
+    <h1>Profiles</h1>
+    <p class="subtitle">See authentication and quota headroom for every account, then choose the route Meridian uses by default.</p>
   </div>
+  <p class="header-note">Requests can override the active route with the <code>x-meridian-profile</code> header.</p>
+</header>
+
+<div id="content"><div class="empty-state"><p>Loading profiles…</p></div></div>
+
+<div class="guide-wrap">
+  <details class="guide" id="setupGuide">
+    <summary>Profile setup and CLI reference</summary>
+    <div class="guide-content">
+      <section class="guide-section">
+        <h3>Add an account</h3>
+        <ol>
+          <li>Run <code>meridian profile add &lt;name&gt;</code>.</li>
+          <li>Complete the Claude login in your browser.</li>
+          <li>Return here to verify authentication and usage.</li>
+        </ol>
+      </section>
+      <section class="guide-section">
+        <h3>Switch the route</h3>
+        <ol>
+          <li>Use a profile action on this page.</li>
+          <li>Or run <code>meridian profile switch &lt;name&gt;</code>.</li>
+          <li>For one request, send <code>x-meridian-profile: &lt;name&gt;</code>.</li>
+        </ol>
+      </section>
+      <div class="warn">
+        <strong>Adding a second account:</strong> Sign out of claude.ai before starting the new login. Claude OAuth reuses the current browser session and may otherwise connect the same account again.
+      </div>
+      <section class="guide-section">
+        <h3>Profile model</h3>
+        <p>Each account keeps its credentials in an isolated config directory. Switching changes the default route without moving or combining credentials.</p>
+      </section>
+      <section class="guide-section">
+        <h3>Other commands</h3>
+        <div class="commands">
+          <code>meridian profile list</code><br>
+          <code>meridian profile login &lt;name&gt;</code><br>
+          <code>meridian profile remove &lt;name&gt;</code>
+        </div>
+      </section>
+    </div>
+  </details>
 </div>
 </div>
 
@@ -256,7 +277,8 @@ async function refresh() {
   }
 }
 
-function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function esc(s) { var d = document.createElement('div'); d.textContent = String(s == null ? '' : s); return d.innerHTML; }
+function escAttr(s) { return esc(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
 
 function renderUsageSection(profileQuota) {
   // No quota data for this profile yet (cold start or fetch failed) — hide
@@ -274,7 +296,7 @@ function renderUsageSection(profileQuota) {
     if (profileQuota.error === 'no_token') {
       return '<div class="usage-section">'
         + '<div class="usage-section-title">Usage</div>'
-        + '<div class="usage-empty">Run <code style="background:var(--bg);padding:1px 5px;border-radius:3px">claude login</code> to see usage.</div>'
+        + '<div class="usage-empty">Run <code>claude login</code> to see usage.</div>'
         + '</div>';
     }
     return ''; // nothing fetched yet
@@ -309,7 +331,7 @@ function renderUsageSection(profileQuota) {
       +     '<span class="usage-pct">' + extra.utilizationPct + '%</span>'
       +   '</div>'
       +   '<div class="usage-bar"><div class="usage-fill" style="width:' + extra.utilizationPct + '%"></div></div>'
-      +   '<div class="usage-extra-row" style="margin-top:4px">'
+      +   '<div class="usage-extra-row">'
       +     '<span class="usage-reset">' + esc(extra.used) + ' / ' + esc(extra.limit) + '</span>'
       +   '</div>'
       + '</div>';
@@ -338,27 +360,36 @@ function render(data, quotaData) {
   if (profiles.length === 0) {
     document.getElementById('content').innerHTML = '<div class="empty-state">'
       + '<h2>No profiles configured</h2>'
-      + '<p style="margin-top:8px">Add your first profile from the terminal:</p>'
-      + '<p style="margin-top:8px"><code class="mono" style="background:var(--bg);padding:8px 16px;border-radius:6px;display:inline-block">meridian profile add personal</code></p>'
+      + '<p>Add your first account from the terminal, then return here to verify its quota.</p>'
+      + '<code class="empty-command">meridian profile add personal</code>'
       + '</div>';
+    document.getElementById('setupGuide').open = true;
     return;
   }
 
-  let html = '<div class="section"><div class="section-title">Configured Profiles</div>';
+  let html = '<section class="section">'
+    + '<div class="section-heading"><div class="section-title">Configured profiles</div>'
+    + '<span class="section-count">' + profiles.length + ' total</span></div>'
+    + '<div class="profile-list">';
 
   for (const p of profiles) {
     const isActive = p.id === active;
+    const usageSection = renderUsageSection(quotaById[p.id]);
     html += '<div class="profile-card' + (isActive ? ' active' : '') + '">';
     html += '<div class="profile-card-header">';
     html += '<span class="profile-name">' + esc(p.id) + '</span>';
-    if (isActive) html += '<span class="profile-badge badge-active">active</span>';
+    if (isActive) html += '<span class="profile-badge badge-active">Default route</span>';
     html += '<span class="profile-badge badge-type">' + esc(p.type || 'claude-max') + '</span>';
+    html += '<span class="status-badge ' + (p.loggedIn ? 'status-authenticated' : 'status-attention') + '">'
+      + (p.loggedIn ? 'Authenticated' : 'Login required') + '</span>';
     html += '</div>';
 
+    html += '<div class="profile-body' + (usageSection ? '' : ' profile-body-single') + '">';
+    html += '<div class="profile-identity">';
     html += '<div class="profile-details">';
     html += '<span class="detail-label">Status</span>';
     html += '<span class="detail-value ' + (p.loggedIn ? 'status-ok' : 'status-err') + '">'
-      + (p.loggedIn ? '\u2713 Authenticated' : '\u2717 Not logged in') + '</span>';
+      + (p.loggedIn ? 'Ready' : 'Not logged in') + '</span>';
 
     if (p.email) {
       html += '<span class="detail-label">Email</span>';
@@ -370,7 +401,7 @@ function render(data, quotaData) {
     }
     if (p.lastSuccessAt) {
       html += '<span class="detail-label">Last Verified</span>';
-      html += '<span class="detail-value" style="color:var(--green)">' + timeAgo(p.lastSuccessAt) + '</span>';
+      html += '<span class="detail-value status-ok">' + timeAgo(p.lastSuccessAt) + '</span>';
     }
     if (p.lastCheckedAt && (!p.lastSuccessAt || p.lastCheckedAt !== p.lastSuccessAt)) {
       html += '<span class="detail-label">Last Checked</span>';
@@ -379,31 +410,31 @@ function render(data, quotaData) {
     html += '</div>';
 
     if (!p.loggedIn) {
-      html += '<div style="margin-top:12px;padding:10px 14px;background:rgba(210,153,34,0.1);border:1px solid rgba(210,153,34,0.3);border-radius:8px;font-size:12px">';
-      html += '<strong style="color:var(--yellow)">\u26a0 Needs re-authentication</strong>';
-      html += '</div>';
+      html += '<div class="auth-warning"><strong>Re-authentication needed.</strong> Run the login command below for this profile.</div>';
     }
 
-    html += '<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-    html += '<span style="font-size:11px;color:var(--muted)">Login:</span> ';
+    html += '<div class="login-command">';
+    html += '<span class="command-label">Login</span>';
     html += '<code class="copy-cmd">meridian profile login ' + esc(p.id) + '</code>';
-    html += '<button class="copy-btn" data-cmd="meridian profile login ' + esc(p.id) + '" onclick="copyCmd(this)" title="Copy to clipboard">';
+    html += '<button class="copy-btn" type="button" data-cmd="meridian profile login ' + escAttr(p.id) + '" onclick="copyCmd(this)" aria-label="Copy login command" title="Copy login command">';
     html += '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25zM5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25z"/></svg>';
     html += '</button>';
     html += '</div>';
 
-    html += renderUsageSection(quotaById[p.id]);
-
+    html += '<div class="profile-actions">';
     if (!isActive) {
-      html += '<button class="switch-btn" onclick="switchProfile(&quot;'+esc(p.id)+'&quot;)">Switch to ' + esc(p.id) + '</button>';
+      html += '<button class="switch-btn" type="button" data-profile="' + escAttr(p.id) + '" onclick="switchProfile(this.dataset.profile)">Use as default</button>';
     } else {
-      html += '<button class="switch-btn current" disabled>Currently active</button>';
+      html += '<button class="switch-btn current" type="button" disabled>Current default</button>';
     }
-
+    html += '</div>';
+    html += '</div>';
+    html += usageSection;
+    html += '</div>';
     html += '</div>';
   }
 
-  html += '</div>';
+  html += '</div></section>';
   document.getElementById('content').innerHTML = html;
 }
 
@@ -417,15 +448,43 @@ function timeAgo(ts) {
   return new Date(ts).toLocaleString();
 }
 
-function copyCmd(btn) {
-  var cmd = btn.getAttribute('data-cmd');
-  navigator.clipboard.writeText(cmd);
-  btn.classList.add('copied');
-  btn.innerHTML = '\u2713';
+function fallbackCopyCmd(cmd) {
+  var field = document.createElement('textarea');
+  field.value = cmd || '';
+  field.setAttribute('readonly', '');
+  field.style.position = 'fixed';
+  field.style.opacity = '0';
+  document.body.appendChild(field);
+  field.select();
+  var copied = false;
+  try { copied = typeof document.execCommand === 'function' && document.execCommand('copy'); }
+  catch (error) { field.dataset.error = error.message; }
+  field.remove();
+  return copied;
+}
+
+function finishCopyCmd(btn, copied, error) {
+  btn.classList.toggle('copied', copied);
+  btn.textContent = copied ? 'OK' : 'Select';
+  btn.setAttribute('aria-label', copied ? 'Login command copied' : 'Copy unavailable; select the login command manually');
+  btn.title = error && !copied ? error.message : copied ? 'Copied to clipboard' : 'Clipboard access is unavailable';
   setTimeout(function() {
     btn.classList.remove('copied');
+    btn.setAttribute('aria-label', 'Copy login command');
+    btn.title = 'Copy login command';
     btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25zM5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25z"/></svg>';
   }, 1500);
+}
+
+function copyCmd(btn) {
+  var cmd = btn.getAttribute('data-cmd') || '';
+  if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+    finishCopyCmd(btn, fallbackCopyCmd(cmd));
+    return;
+  }
+  navigator.clipboard.writeText(cmd)
+    .then(function() { finishCopyCmd(btn, true); })
+    .catch(function(error) { finishCopyCmd(btn, fallbackCopyCmd(cmd), error); });
 }
 
 async function switchProfile(id) {
