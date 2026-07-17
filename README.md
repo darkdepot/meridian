@@ -122,8 +122,8 @@ Then in `~/.config/opencode/opencode.json`:
       # defaultAgent = "opencode";
       # sonnetModel = "sonnet";
       # Load plugins from the Nix store (rendered to a plugins.json manifest).
-      # Point at an entry inside a packaged derivation so its deps come along.
-      # pluginConfig = [ { path = "${pkgs.my-meridian-plugin}/lib/index.js"; } ];
+      # The official scrub plugins ship prebuilt via the meridian overlay:
+      # pluginConfig = [ { path = pkgs.meridianPlugins.opencode-scrub.path; } ];
       # pluginDir = "/path/to/extra/plugins";
     };
     # Extra env vars not covered by settings
@@ -868,7 +868,9 @@ opt-in plugins instead:
 | [`@rynfar/meridian-plugin-pi-scrub`](https://github.com/rynfar/meridian-plugin-pi-scrub) | Strips Pi's coding-agent-harness prompt line that Anthropic meters as Extra Usage. |
 | [`@rynfar/meridian-plugin-opencode-scrub`](https://github.com/rynfar/meridian-plugin-opencode-scrub) | Strips OpenCode harness boilerplate from the system prompt before it reaches Claude. |
 
-Install into Meridian's config dir and register the built file in
+**Nix users:** the flake packages all three prebuilt — `pkgs.meridianPlugins.<name>` via the `meridian` overlay (or `meridian.legacyPackages.${system}.meridianPlugins`), each exposing `.path` for a `plugins.json` entry or the home-manager `pluginConfig` option. Pins are refreshed by a scheduled workflow that rebuilds every plugin before bumping.
+
+Everyone else: install into Meridian's config dir and register the built file in
 `~/.config/meridian/plugins.json`:
 
 ```bash
