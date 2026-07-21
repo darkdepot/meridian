@@ -23,7 +23,12 @@ fi
 
 if [ -n "$MERIDIAN_PLUGINS" ]; then
   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-  node "$SCRIPT_DIR/docker-install-plugins.mjs"
+  # Warn loudly but still start: a transient npm failure shouldn't take the
+  # proxy down, but starting silently without the requested plugins would
+  # defeat their purpose (e.g. billing-protection scrubbers).
+  if ! node "$SCRIPT_DIR/docker-install-plugins.mjs"; then
+    echo "[entrypoint] WARNING: plugin install failed — starting WITHOUT the plugins in MERIDIAN_PLUGINS" >&2
+  fi
 fi
 
 exec "$@"

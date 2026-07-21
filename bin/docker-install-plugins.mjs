@@ -28,8 +28,17 @@ const manifestPath = process.env.MERIDIAN_PLUGIN_CONFIG ?? join(configDir, "plug
 
 mkdirSync(configDir, { recursive: true })
 
+// Anchor the install root. Without a package.json in configDir, npm walks UP
+// the directory tree and installs into the nearest ancestor project — the
+// packages land elsewhere, the manifest resolution below throws, and the
+// container starts without plugins. An empty manifest pins npm to configDir.
+const anchorPath = join(configDir, "package.json")
+if (!existsSync(anchorPath)) writeFileSync(anchorPath, "{}\n")
+
 console.log(`[docker-install-plugins] Installing: ${specs.join(", ")}`)
-execFileSync("npm", ["install", "--no-audit", "--no-fund", ...specs], {
+// --prefer-offline: containers restart more often than plugins change; reuse
+// the npm cache instead of requiring registry access on every start.
+execFileSync("npm", ["install", "--no-audit", "--no-fund", "--prefer-offline", ...specs], {
   cwd: configDir,
   stdio: "inherit",
 })
@@ -64,7 +73,7 @@ for (const spec of specs) {
   // re-adding it, so re-running this script doesn't pile up duplicates.
   // Match on a path boundary, not a bare prefix — "meridian-plugin-hermes"
   // is a string-prefix of "meridian-plugin-hermes-scrub"'s directory.
-  manifest.plugins = manifest.plugins.filter(entry => !entry.path.startsWith(packageDir + "/"))
+  manifest.plugins = manifest.plugins.filter(entry => !(typeof entry?.path === "string" && entry.path.startsWith(packageDir + "/")))
   manifest.plugins.push({ path: entryPath, enabled: true })
   console.log(`[docker-install-plugins] Registered ${packageName} -> ${entryPath}`)
 }

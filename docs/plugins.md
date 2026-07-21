@@ -64,7 +64,7 @@ services:
   proxy:
     build: .
     environment:
-      MERIDIAN_PLUGINS: "@rynfar/meridian-plugin-hermes-scrub,@rynfar/meridian-plugin-opencode-scrub"
+      MERIDIAN_PLUGINS: "@rynfar/meridian-plugin-pi-scrub,@rynfar/meridian-plugin-opencode-scrub"
 ```
 
 The entrypoint runs `npm install` into `~/.config/meridian` inside the container and writes the resulting entries to `plugins.json` (or `MERIDIAN_PLUGIN_CONFIG` if set). This runs on every container start and isn't backed by a volume, so plugin installs don't persist across `docker compose down && up` — only across plain restarts of the same container. If you want plugins baked into a reproducible image instead, install them in a custom `Dockerfile` layer at build time rather than via this env var.
