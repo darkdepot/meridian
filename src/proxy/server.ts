@@ -13,7 +13,7 @@ import { fetchOAuthUsage } from "./oauthUsage"
 import { resolveSdkWorkingDirectory } from "./cwd"
 import type { Context } from "hono"
 import { DEFAULT_PROXY_CONFIG } from "./types"
-import { envBool } from "../env"
+import { envBool, envInt } from "../env"
 import type { ProxyConfig, ProxyInstance, ProxyServer } from "./types"
 export type { ProxyConfig, ProxyInstance, ProxyServer }
 // Public plugin-authoring types. Plugins import these to type their
@@ -81,6 +81,7 @@ import { getRoutingMode } from "./routing"
 import { getSetting } from "./settings"
 import { filterBetasForProfile, getBetaPolicyFromEnv } from "./betas"
 import { createFileChangeHook, extractFileChangesFromMessages, formatFileChangeSummary, type FileChange } from "./fileChanges"
+import { createWarmQueryKey, WarmQueryPool } from "./warmQueryPool"
 import { detectTokenAnomalies, formatAnomalyAlerts, type TokenSnapshot } from "./tokenHealth"
 import { computeCacheHitRate, formatUsageSummary } from "./tokenUsage"
 import { sanitizeTextContent } from "./sanitize"
@@ -314,6 +315,16 @@ let proxyLogSilent = false
 function plog(message: string): void {
   if (!proxyLogSilent) console.error(message)
 }
+
+const sdkWarmQueryPool = new WarmQueryPool({
+  enabled: envBool("SDK_PREWARM"),
+  maxEntries: envInt("SDK_PREWARM_MAX", 4),
+  ttlMs: envInt("SDK_PREWARM_TTL_MS", 120_000),
+  initializeTimeoutMs: envInt("SDK_PREWARM_INIT_TIMEOUT_MS", 15_000),
+  onEvent(event, details) {
+    claudeLog(`sdk.prewarm.${event}`, details)
+  },
+})
 
 function logUsage(requestId: string, usage: TokenUsage): void {
   plog(`[PROXY] ${requestId} usage: ${formatUsageSummary(usage)}`)
@@ -1150,6 +1161,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
       // Tool cache: if the client omits tools on a continuation request but
       // previously sent them, reuse the cached set to preserve prompt cache.
       let passthroughMcp: ReturnType<typeof createPassthroughMcpServer> | undefined
+      let passthroughToolSetKey: string | undefined
       let requestTools = Array.isArray(body.tools) ? body.tools : []
       // Extract advisor model from tools and strip advisor tool definitions
       // before passing to passthrough MCP — the SDK handles advisors natively
@@ -1167,6 +1179,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
       }
       if (passthrough && requestTools.length > 0) {
         const toolSetKey = computeToolSetKey(requestTools)
+        passthroughToolSetKey = toolSetKey
         const cachedMcp = profileSessionId ? sessionMcpCache.get(profileSessionId) : undefined
         if (cachedMcp && cachedMcp.key === toolSetKey) {
           passthroughMcp = cachedMcp.mcp
@@ -1374,6 +1387,105 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
         const onStderr = (data: string) => {
           stderrLines.push(data.trimEnd())
           claudeLog("subprocess.stderr", { line: data.trimEnd() })
+        }
+
+        // A warm handle is safe only when every option fixed at SDK startup is
+        // identical. The raw values (including private system context) are
+        // reduced to a SHA-256 key and are never logged or retained as the key.
+        // Limit the first implementation to keyed streaming passthrough
+        // sessions — the Zeni/OpenCode-compatible path validated in production.
+        const warmKeyFor = (nextResumeSessionId: string | undefined): string | undefined => {
+          if (
+            !stream ||
+            !passthrough ||
+            !profileSessionId ||
+            !nextResumeSessionId ||
+            isIndependentSession ||
+            isUndo
+          ) return undefined
+
+          return createWarmQueryKey({
+            adapter: adapter.name,
+            profileId: profile.id,
+            profileSessionId,
+            resumeSessionId: nextResumeSessionId,
+            model,
+            workingDirectory,
+            clientWorkingDirectory: clientWorkingDirectory ?? null,
+            systemContext,
+            toolSetKey: passthroughToolSetKey ?? null,
+            sdkAgents,
+            blockedTools: pipelineCtx.blockedTools,
+            incompatibleTools: pipelineCtx.incompatibleTools,
+            mcpServerName: adapter.getMcpServerName(),
+            allowedMcpTools: pipelineCtx.allowedMcpTools,
+            effort: effort ?? null,
+            thinking: thinking ?? null,
+            taskBudget: taskBudget ?? null,
+            outputFormat: outputFormat ?? null,
+            betas,
+            settingSources,
+            codeSystemPrompt: sdkFeatures.codeSystemPrompt,
+            clientSystemPrompt: sdkFeatures.clientSystemPrompt,
+            memory: sdkFeatures.memory,
+            dreaming: sdkFeatures.dreaming,
+            sharedMemory: sdkFeatures.sharedMemory,
+            maxBudgetUsd: sdkFeatures.maxBudgetUsd,
+            fallbackModel: sdkFeatures.fallbackModel,
+            additionalDirectories: sdkFeatures.additionalDirectories,
+            advisorModel: advisorModel ?? null,
+            profileEnvHash: createWarmQueryKey(profileEnv),
+          })
+        }
+
+        const prepareWarmFor = (nextResumeSessionId: string | undefined): void => {
+          const key = warmKeyFor(nextResumeSessionId)
+          if (!key || !nextResumeSessionId) return
+          const nextQuery = buildQueryOptions({
+            // startup() fixes only SDK options; the next request supplies its
+            // own prompt when it consumes the one-shot WarmQuery.
+            prompt: "",
+            model,
+            workingDirectory,
+            clientWorkingDirectory,
+            systemContext,
+            claudeExecutable,
+            passthrough,
+            stream: true,
+            sdkAgents,
+            passthroughMcp,
+            cleanEnv: profileEnv,
+            envOverrides,
+            hasDeferredTools,
+            resumeSessionId: nextResumeSessionId,
+            isUndo: false,
+            undoRollbackUuid: undefined,
+            sdkHooks,
+            blockedTools: pipelineCtx.blockedTools,
+            incompatibleTools: pipelineCtx.incompatibleTools,
+            mcpServerName: adapter.getMcpServerName(),
+            allowedMcpTools: pipelineCtx.allowedMcpTools,
+            onStderr,
+            effort,
+            thinking,
+            taskBudget,
+            outputFormat,
+            betas,
+            settingSources,
+            codeSystemPrompt: sdkFeatures.codeSystemPrompt,
+            clientSystemPrompt: sdkFeatures.clientSystemPrompt === false ? false : undefined,
+            memory: sdkFeatures.memory,
+            dreaming: sdkFeatures.dreaming,
+            sharedMemory: sdkFeatures.sharedMemory,
+            maxBudgetUsd: sdkFeatures.maxBudgetUsd,
+            fallbackModel: sdkFeatures.fallbackModel,
+            sdkDebug: sdkFeatures.sdkDebug,
+            additionalDirectories: sdkFeatures.additionalDirectories
+              ? sdkFeatures.additionalDirectories.split(",").map(d => d.trim()).filter(Boolean)
+              : undefined,
+            advisorModel,
+          })
+          sdkWarmQueryPool.prepare(key, nextQuery.options)
         }
 
         if (!stream) {
@@ -2154,6 +2266,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
                 let didFreshBaseRetry = false
                 let busySessionRetries = 0
                 let busySessionFork = false
+                let warmAttemptUsed = false
 
                 while (true) {
                   // Track whether client-visible SSE events were yielded.
@@ -2165,7 +2278,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
                   // must not re-match a previous attempt's refusal text.
                   const attemptStderrStart = stderrLines.length
                   try {
-                    for await (const event of query(buildQueryOptions({
+                    const builtQuery = buildQueryOptions({
                       prompt: makePrompt(), model, workingDirectory, clientWorkingDirectory, systemContext, claudeExecutable,
                       passthrough, stream: true, sdkAgents, passthroughMcp, cleanEnv: profileEnv, envOverrides, hasDeferredTools,
                       resumeSessionId, isUndo, undoRollbackUuid, forkSession: busySessionFork || undefined, sdkHooks, blockedTools: pipelineCtx.blockedTools, incompatibleTools: pipelineCtx.incompatibleTools, mcpServerName: adapter.getMcpServerName(), allowedMcpTools: pipelineCtx.allowedMcpTools, onStderr,
@@ -2178,7 +2291,16 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
                         ? sdkFeatures.additionalDirectories.split(",").map(d => d.trim()).filter(Boolean)
                         : undefined,
                       advisorModel,
-                    }, requestAbort.controller))) {
+                    }, requestAbort.controller)
+                    const warmedQuery = !warmAttemptUsed && !busySessionFork
+                      ? await sdkWarmQueryPool.take(
+                          warmKeyFor(resumeSessionId),
+                          builtQuery.options,
+                          builtQuery.prompt,
+                        )
+                      : undefined
+                    warmAttemptUsed = true
+                    for await (const event of warmedQuery ?? query(builtQuery)) {
                       // Same SDK rate-limit capture as the non-stream path.
                       if ((event as any).type === "rate_limit_event") {
                         rateLimitStore.record((event as any).rate_limit_info)
@@ -2797,6 +2919,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
               // abort. See the non-stream store above.
               if (currentSessionId && !isIndependentSession && !sawDuplicateToolUse) {
                 storeSession(profileSessionId, body.messages || [], currentSessionId, profileScopedCwd, sdkUuidMap, lastUsage)
+                prepareWarmFor(currentSessionId)
               }
               resolvePendingStore()
 
@@ -4277,6 +4400,7 @@ export async function startProxyServer(config: Partial<ProxyConfig> = {}): Promi
       clearInterval(profileTokenRefreshInterval)
       if (authKeepaliveInterval) clearInterval(authKeepaliveInterval)
       stopBackgroundRefresh()
+      sdkWarmQueryPool.closeAll()
       await new Promise<void>((resolve, reject) => {
         server.close((err) => (err ? reject(err) : resolve()))
       })

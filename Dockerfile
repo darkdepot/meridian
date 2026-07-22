@@ -10,8 +10,9 @@ COPY package.json bun.lock* ./
 # loader paths) — yields ENOENT despite the file being present. The
 # install is performed in the runtime stage instead so it matches the
 # runtime libc.
-RUN --mount=type=cache,target=/root/.bun \
-    bun install --ignore-scripts
+# Keep the source-pinned production build compatible with Docker engines that
+# do not have the optional BuildKit/buildx plugin installed.
+RUN bun install --ignore-scripts
 
 COPY tsconfig.json* ./
 COPY bin/ ./bin/
@@ -26,7 +27,8 @@ FROM node:22-alpine
 RUN deluser --remove-home node 2>/dev/null; \
     adduser -D -u 1000 claude \
     && mkdir -p /home/claude/.claude \
-    && chown -R claude:claude /home/claude
+    && mkdir -p /app/bin/shims \
+    && chown -R claude:claude /home/claude /app
 
 USER claude
 WORKDIR /app
