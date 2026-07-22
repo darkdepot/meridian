@@ -40,6 +40,10 @@ Environment variables, endpoints, authentication, SDK feature toggles, passthrou
 | `MERIDIAN_SILENT` | `CLAUDE_PROXY_SILENT` | unset | Set to `1` to suppress startup output (used by embedding plugins) |
 | `MERIDIAN_PLUGIN_DIR` | — | `~/.config/meridian/plugins` | Plugin auto-discovery directory |
 | `MERIDIAN_PLUGIN_CONFIG` | — | `~/.config/meridian/plugins.json` | Plugin manifest path |
+| `MERIDIAN_SDK_PREWARM` | `CLAUDE_PROXY_SDK_PREWARM` | unset | Opt in to one-shot SDK subprocess prewarming for keyed streaming passthrough sessions. The first turn remains cold; a ready follow-up can skip SDK startup. |
+| `MERIDIAN_SDK_PREWARM_MAX` | `CLAUDE_PROXY_SDK_PREWARM_MAX` | `4` | Maximum number of idle prewarmed subprocesses. |
+| `MERIDIAN_SDK_PREWARM_TTL_MS` | `CLAUDE_PROXY_SDK_PREWARM_TTL_MS` | `120000` | Time an unused prewarmed subprocess may remain idle before it is closed. |
+| `MERIDIAN_SDK_PREWARM_INIT_TIMEOUT_MS` | `CLAUDE_PROXY_SDK_PREWARM_INIT_TIMEOUT_MS` | `15000` | Maximum time allowed for speculative SDK initialization. |
 
 †Sonnet 1M requires Extra Usage on all plans including Max ([docs](https://code.claude.com/docs/en/model-config#extended-context)). Opus 1M is included with Max/Team/Enterprise at no extra cost.
 
@@ -160,6 +164,24 @@ Most users don't need to configure anything — the adapter sets the right mode 
 MERIDIAN_PASSTHROUGH=1 meridian   # force passthrough
 MERIDIAN_PASSTHROUGH=0 meridian   # force internal
 ```
+
+### SDK subprocess prewarming
+
+Every ordinary Agent SDK query starts a Claude subprocess and completes an
+initialization handshake before the model can receive the prompt. On a
+multi-turn passthrough session, Meridian can perform that initialization after
+the current response and keep a one-shot handle ready for the next turn:
+
+```bash
+MERIDIAN_SDK_PREWARM=1 meridian
+```
+
+Prewarming is intentionally opt-in and limited to streaming passthrough
+requests carrying a stable client session id. Meridian hashes every
+startup-relevant option into the pool key, never waits for unfinished
+speculative work on the request path, and falls back to a normal cold query on
+any mismatch. Idle handles are bounded and expire automatically. Disable the
+feature (or roll it back instantly) with `MERIDIAN_SDK_PREWARM=0`.
 
 ### How tool calling works in passthrough
 
