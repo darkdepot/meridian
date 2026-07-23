@@ -178,6 +178,27 @@ describe("WarmQueryPool", () => {
     expect(await pool.take("stale-after-disable", {}, "next turn")).toBeUndefined()
   })
 
+  test("does not take a handle disabled during its startup microtask", async () => {
+    let enabled = true
+    let resolveWarm!: (warm: WarmQuery) => void
+    const warm = fakeWarm()
+    const pool = new WarmQueryPool({
+      enabled: () => enabled,
+      start: () => new Promise((resolve) => {
+        resolveWarm = resolve
+      }),
+    })
+
+    pool.prepare("disable-race", {})
+    const take = pool.take("disable-race", {}, "next turn")
+    enabled = false
+    resolveWarm(warm)
+
+    expect(await take).toBeUndefined()
+    await Bun.sleep(0)
+    expect(warm.closeCalls).toBeGreaterThan(0)
+  })
+
   test("discards and closes an unused query after its TTL", async () => {
     const events: Array<{ event: string; details: Record<string, unknown> }> = []
     const warm = fakeWarm()

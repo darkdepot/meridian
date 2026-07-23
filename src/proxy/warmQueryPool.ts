@@ -203,6 +203,11 @@ export class WarmQueryPool {
       return undefined
     }
     if (!entry.ready) await Promise.resolve()
+    if (!this.checkEnabled()) {
+      this.closeEntry(entry)
+      this.onEvent?.("miss", { key: key.slice(0, 12), reason: "disabled" })
+      return undefined
+    }
     // Never put startup latency back on the request path. If the user sends
     // another turn before initialization completed, discard this speculative
     // process and use the ordinary cold query immediately.
