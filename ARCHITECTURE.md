@@ -42,6 +42,7 @@ src/
 │   │   ├── opencode.ts        ← OpenCode adapter (session headers, CWD extraction, tool config)
 │   │   └── forgecode.ts       ← ForgeCode adapter (fingerprint sessions, XML CWD, passthrough)
 │   ├── query.ts               ← SDK query options builder (shared between stream/non-stream paths)
+│   ├── prewarm.ts             ← Explicit prewarm plan registry + endpoint rate limiter
 │   ├── errors.ts              ← Error classification (SDK errors → HTTP responses)
 │   ├── models.ts              ← Model mapping, Claude executable resolution
 │   ├── tools.ts               ← Tool blocking lists, MCP server name, allowed tools

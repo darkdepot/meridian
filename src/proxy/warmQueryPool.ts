@@ -33,13 +33,15 @@ interface WarmEntry {
 }
 
 export interface WarmQueryPoolOptions {
-  enabled: boolean
+  enabled: boolean | (() => boolean)
   maxEntries?: number
   ttlMs?: number
   initializeTimeoutMs?: number
   start?: StartWarmQuery
   onEvent?: (event: string, details: Record<string, unknown>) => void
 }
+
+export type WarmQueryPrepareStatus = "warming" | "already_warm" | "disabled"
 
 function hookShape(hooks: Hooks): string {
   if (!hooks) return "none"
@@ -95,7 +97,7 @@ export function createWarmQueryKey(value: unknown): string {
 }
 
 export class WarmQueryPool {
-  private readonly enabled: boolean
+  private readonly enabled: () => boolean
   private readonly maxEntries: number
   private readonly ttlMs: number
   private readonly initializeTimeoutMs: number
@@ -104,7 +106,8 @@ export class WarmQueryPool {
   private readonly entries = new Map<string, WarmEntry>()
 
   constructor(options: WarmQueryPoolOptions) {
-    this.enabled = options.enabled
+    const enabled = options.enabled
+    this.enabled = typeof enabled === "function" ? enabled : () => enabled
     this.maxEntries = Math.max(1, options.maxEntries ?? 4)
     this.ttlMs = Math.max(1_000, options.ttlMs ?? 120_000)
     this.initializeTimeoutMs = Math.max(1_000, options.initializeTimeoutMs ?? 15_000)
@@ -118,8 +121,13 @@ export class WarmQueryPool {
     return this.entries.size
   }
 
-  prepare(key: string | undefined, options: Options): void {
-    if (!this.enabled || !key || this.entries.has(key)) return
+  get isEnabled(): boolean {
+    return this.enabled()
+  }
+
+  prepare(key: string, options: Options): WarmQueryPrepareStatus {
+    if (!this.isEnabled) return "disabled"
+    if (this.entries.has(key)) return "already_warm"
 
     while (this.entries.size >= this.maxEntries) {
       const oldestKey = this.entries.keys().next().value as string | undefined
@@ -171,10 +179,11 @@ export class WarmQueryPool {
     // A background prewarm failure must not become an unhandled rejection.
     void promise.catch(() => {})
     this.onEvent?.("started", { key: key.slice(0, 12), size: this.entries.size })
+    return "warming"
   }
 
   async take(key: string | undefined, options: Options, prompt: Prompt): Promise<Query | undefined> {
-    if (!this.enabled || !key) return undefined
+    if (!this.isEnabled || !key) return undefined
     const entry = this.entries.get(key)
     if (!entry) {
       this.onEvent?.("miss", { key: key.slice(0, 12) })

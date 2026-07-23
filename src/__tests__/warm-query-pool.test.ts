@@ -156,6 +156,27 @@ describe("WarmQueryPool", () => {
     pool.closeAll()
   })
 
+  test("discards and closes an unused query after its TTL", async () => {
+    const events: Array<{ event: string; details: Record<string, unknown> }> = []
+    const warm = fakeWarm()
+    const pool = new WarmQueryPool({
+      enabled: true,
+      ttlMs: 1_000,
+      start: async () => warm,
+      onEvent: (event, details) => events.push({ event, details }),
+    })
+
+    pool.prepare("expires", {})
+    await Bun.sleep(1_100)
+
+    expect(pool.size).toBe(0)
+    expect(warm.closeCalls).toBeGreaterThan(0)
+    expect(events).toContainEqual({
+      event: "discarded",
+      details: { key: "expires", reason: "ttl", size: 0 },
+    })
+  })
+
   test("hashes warm keys without retaining raw prompt context", () => {
     const a = createWarmQueryKey({ model: "sonnet", system: "private context" })
     const b = createWarmQueryKey({ model: "sonnet", system: "private context" })

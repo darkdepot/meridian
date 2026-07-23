@@ -53,6 +53,7 @@ Environment variables, endpoints, authentication, SDK feature toggles, passthrou
 |----------|-------------|
 | `GET /` | Landing page |
 | `POST /v1/messages` | Anthropic Messages API |
+| `POST /v1/prewarm` | Authenticated one-shot SDK prewarm for a known `{sessionKey}` |
 | `POST /messages` | Alias for `/v1/messages` |
 | `POST /v1/chat/completions` | OpenAI-compatible chat completions |
 | `POST /v1/responses` | OpenAI Responses API (Codex CLI ≥ 0.96) |
@@ -182,6 +183,21 @@ startup-relevant option into the pool key, never waits for unfinished
 speculative work on the request path, and falls back to a normal cold query on
 any mismatch. Idle handles are bounded and expire automatically. Disable the
 feature (or roll it back instantly) with `MERIDIAN_SDK_PREWARM=0`.
+
+An authenticated controller can explicitly replenish an expired or otherwise
+missing warm handle for a recently active keyed session:
+
+```bash
+curl -X POST http://127.0.0.1:3456/v1/prewarm \
+  -H "x-api-key: $MERIDIAN_API_KEY" \
+  -H "content-type: application/json" \
+  -d '{"sessionKey":"client-session-id"}'
+```
+
+The response status is `warming`, `already_warm`, or `disabled`. Meridian only
+accepts session keys previously observed on the selected profile; unknown keys
+return `404` without starting a subprocess. The endpoint is limited to 30
+requests per minute per Meridian process.
 
 ### How tool calling works in passthrough
 
