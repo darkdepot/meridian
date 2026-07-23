@@ -60,12 +60,15 @@ const { WarmQueryPool } = await import("../proxy/warmQueryPool")
 
 const savedEnv = {
   passthrough: process.env.MERIDIAN_PASSTHROUGH,
+  routing: process.env.MERIDIAN_ROUTING,
   sessionDir: process.env.MERIDIAN_SESSION_DIR,
 }
 
 afterAll(() => {
   if (savedEnv.passthrough === undefined) delete process.env.MERIDIAN_PASSTHROUGH
   else process.env.MERIDIAN_PASSTHROUGH = savedEnv.passthrough
+  if (savedEnv.routing === undefined) delete process.env.MERIDIAN_ROUTING
+  else process.env.MERIDIAN_ROUTING = savedEnv.routing
   if (savedEnv.sessionDir === undefined) delete process.env.MERIDIAN_SESSION_DIR
   else process.env.MERIDIAN_SESSION_DIR = savedEnv.sessionDir
 })
@@ -83,7 +86,7 @@ function post(
   }))
 }
 
-function createTestApp(enabled: boolean) {
+function createTestApp(enabled: boolean, profiles?: Array<{ id: string }>) {
   const pool = new WarmQueryPool({
     enabled,
     onEvent: (event, details) => {
@@ -102,7 +105,7 @@ function createTestApp(enabled: boolean) {
     },
   })
   const { app } = createProxyServerForTests(
-    { port: 0, host: "127.0.0.1" },
+    { port: 0, host: "127.0.0.1", profiles },
     pool,
   )
   return { app, pool }
@@ -123,6 +126,7 @@ async function establishSession(
 describe("POST /v1/prewarm", () => {
   beforeEach(() => {
     process.env.MERIDIAN_PASSTHROUGH = "1"
+    delete process.env.MERIDIAN_ROUTING
     process.env.MERIDIAN_SESSION_DIR = "/private/tmp/zeni106-prewarm-test-sessions"
     coldQueryCalls = 0
     startupCalls = []
@@ -145,6 +149,16 @@ describe("POST /v1/prewarm", () => {
     const { app } = createTestApp(false)
 
     const response = await post(app, "/v1/prewarm", { sessionKey: "   " })
+
+    expect(response.status).toBe(400)
+    expect(startupCalls).toHaveLength(0)
+  })
+
+  it("requires an explicit profile for non-sticky multi-profile routing", async () => {
+    process.env.MERIDIAN_ROUTING = "active"
+    const { app } = createTestApp(true, [{ id: "one" }, { id: "two" }])
+
+    const response = await post(app, "/v1/prewarm", { sessionKey: SESSION_KEY })
 
     expect(response.status).toBe(400)
     expect(startupCalls).toHaveLength(0)

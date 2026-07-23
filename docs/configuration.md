@@ -197,7 +197,10 @@ curl -X POST http://127.0.0.1:3456/v1/prewarm \
 The response status is `warming`, `already_warm`, or `disabled`. Meridian only
 accepts session keys previously observed on the selected profile; unknown keys
 return `404` without starting a subprocess. The endpoint is limited to 30
-requests per minute per Meridian process.
+requests per minute per Meridian process. With multiple profiles, pass the same
+`x-meridian-profile` header used by the session, or enable sticky routing so
+Meridian can derive the profile from `sessionKey`; non-sticky multi-profile
+requests without that header return `400` instead of guessing.
 
 ### How tool calling works in passthrough
 

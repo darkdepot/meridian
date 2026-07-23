@@ -3467,10 +3467,24 @@ function createProxyServerWithWarmPool(
     }
 
     const routingMode = getRoutingMode(process.env.MERIDIAN_ROUTING ?? getSetting("routing"))
+    const requestedProfile = c.req.header("x-meridian-profile") || undefined
+    if (
+      !requestedProfile &&
+      routingMode !== "sticky" &&
+      getEffectiveProfiles(finalConfig.profiles).length > 1
+    ) {
+      return c.json({
+        type: "error",
+        error: {
+          type: "invalid_request_error",
+          message: "x-meridian-profile is required for prewarm with multiple profiles unless sticky routing is enabled",
+        },
+      }, 400)
+    }
     const profile = resolveProfile(
       finalConfig.profiles,
       finalConfig.defaultProfile,
-      c.req.header("x-meridian-profile") || undefined,
+      requestedProfile,
       routingMode === "sticky"
         ? { routingMode, stickySessionKey: sessionKey }
         : undefined,
