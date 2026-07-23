@@ -58,9 +58,9 @@ export class PrewarmPlanStore {
     if (!this.pool.isEnabled) return { status: "disabled" }
 
     const planId = JSON.stringify([profileId, sessionKey])
+    if (this.activeSessions.has(planId)) return { status: "busy_session" }
     const plan = this.plans.get(planId)
     if (!plan) return { status: "unknown_session" }
-    if (this.activeSessions.has(planId)) return { status: "busy_session" }
 
     // Refresh recency on successful lookup.
     this.plans.delete(planId)
