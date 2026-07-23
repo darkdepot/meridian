@@ -36,6 +36,16 @@ afterAll(() => {
 const { createProxyServer } = await import("../proxy/server")
 
 describe("MERIDIAN_API_KEY — /settings/api/* (regression for #477)", () => {
+  it("rejects POST /v1/prewarm without auth", async () => {
+    const { app } = createProxyServer({ port: 0, host: "127.0.0.1" })
+    const res = await app.fetch(new Request("http://localhost/v1/prewarm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionKey: "known-session" }),
+    }))
+    expect(res.status).toBe(401)
+  })
+
   it("rejects GET /settings/api/features without auth", async () => {
     const { app } = createProxyServer({ port: 0, host: "127.0.0.1" })
     const res = await app.fetch(new Request("http://localhost/settings/api/features"))

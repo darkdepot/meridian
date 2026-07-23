@@ -9,7 +9,6 @@ import {
   textDelta,
 } from "./helpers"
 
-const TEST_API_KEY = "placeholder"
 const SESSION_KEY = "client-session-prewarm"
 let coldQueryCalls = 0
 let startupCalls: Array<Record<string, unknown>> = []
@@ -60,14 +59,11 @@ const {
 const { WarmQueryPool } = await import("../proxy/warmQueryPool")
 
 const savedEnv = {
-  apiKey: process.env.MERIDIAN_API_KEY,
   passthrough: process.env.MERIDIAN_PASSTHROUGH,
   sessionDir: process.env.MERIDIAN_SESSION_DIR,
 }
 
 afterAll(() => {
-  if (savedEnv.apiKey === undefined) delete process.env.MERIDIAN_API_KEY
-  else process.env.MERIDIAN_API_KEY = savedEnv.apiKey
   if (savedEnv.passthrough === undefined) delete process.env.MERIDIAN_PASSTHROUGH
   else process.env.MERIDIAN_PASSTHROUGH = savedEnv.passthrough
   if (savedEnv.sessionDir === undefined) delete process.env.MERIDIAN_SESSION_DIR
@@ -126,7 +122,6 @@ async function establishSession(
 
 describe("POST /v1/prewarm", () => {
   beforeEach(() => {
-    delete process.env.MERIDIAN_API_KEY
     process.env.MERIDIAN_PASSTHROUGH = "1"
     process.env.MERIDIAN_SESSION_DIR = "/private/tmp/zeni106-prewarm-test-sessions"
     coldQueryCalls = 0
@@ -143,16 +138,6 @@ describe("POST /v1/prewarm", () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ status: "disabled" })
-    expect(startupCalls).toHaveLength(0)
-  })
-
-  it("rejects an unauthenticated request before doing work", async () => {
-    process.env.MERIDIAN_API_KEY = TEST_API_KEY
-    const { app } = createTestApp(true)
-
-    const response = await post(app, "/v1/prewarm", { sessionKey: SESSION_KEY })
-
-    expect(response.status).toBe(401)
     expect(startupCalls).toHaveLength(0)
   })
 
