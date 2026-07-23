@@ -1458,7 +1458,7 @@ function createProxyServerWithWarmPool(
 
         const prepareWarmFor = (nextResumeSessionId: string | undefined): void => {
           const key = warmKeyFor(nextResumeSessionId)
-          if (!key || !nextResumeSessionId || !profileSessionId) return
+          if (!key || !nextResumeSessionId) return
           const nextQuery = buildQueryOptions({
             // startup() fixes only SDK options; the next request supplies its
             // own prompt when it consumes the one-shot WarmQuery.
@@ -1503,7 +1503,9 @@ function createProxyServerWithWarmPool(
               : undefined,
             advisorModel,
           })
-          prewarmPlans.register(profileSessionId, { key, options: nextQuery.options })
+          if (profileSessionId) {
+            prewarmPlans.register(profileSessionId, { key, options: nextQuery.options })
+          }
           warmQueryPool.prepare(key, nextQuery.options)
         }
 
