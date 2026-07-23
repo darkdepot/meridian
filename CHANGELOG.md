@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.56.0](https://github.com/darkdepot/meridian/compare/meridian-v1.55.0...meridian-v1.56.0) (2026-07-23)
+
+
+### Features
+
+* add prewarm control endpoint ([b7f53c4](https://github.com/darkdepot/meridian/commit/b7f53c44c5d0dc6340469f232dcf455332f4355e))
+* add prewarm control endpoint ([c519899](https://github.com/darkdepot/meridian/commit/c51989909ea71d48248c5db21a2894f84dc498ac))
+
+
+### Bug Fixes
+
+* honor prewarm disable during startup ([b6ffbfc](https://github.com/darkdepot/meridian/commit/b6ffbfcb107bf112ad22cf2a425fa2032696840c))
+* isolate prewarm plans by profile ([567c77a](https://github.com/darkdepot/meridian/commit/567c77a8173f8fb67f57bd70aadd051f12a37df9))
+* mark sessions busy before setup ([ee9e9c5](https://github.com/darkdepot/meridian/commit/ee9e9c50bfad27c917983436fe4951ec14ac9530))
+* preserve automatic prewarm flow ([adc67cc](https://github.com/darkdepot/meridian/commit/adc67ccc33c583ee2deebd46137896d41a27c5a8))
+* preserve prewarm profile affinity ([6699ab7](https://github.com/darkdepot/meridian/commit/6699ab7033b9a7a44ca7b14fef1b6d8210e84769))
+* prevent stale prewarm handles ([09136e9](https://github.com/darkdepot/meridian/commit/09136e941ff39fa8d6785c3efa56d90f1a43cef6))
+* report active prewarm sessions ([358318b](https://github.com/darkdepot/meridian/commit/358318b437474eb4af8ae8d53dbeb8482b176462))
+
+
+### Performance
+
+* prewarm SDK subprocess for follow-up turns ([2fbc6a4](https://github.com/darkdepot/meridian/commit/2fbc6a49285622bc0b3fb98abe592c0b0769af54))
+
 ## [1.55.0](https://github.com/rynfar/meridian/compare/meridian-v1.54.0...meridian-v1.55.0) (2026-07-21)
 
 
