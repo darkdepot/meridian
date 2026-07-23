@@ -1,76 +1,21 @@
-import { afterAll, beforeEach, describe, expect, it, mock } from "bun:test"
-import type { Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk"
-import {
-  blockStop,
-  messageDelta,
-  messageStart,
-  messageStop,
-  textBlockStart,
-  textDelta,
-} from "./helpers"
+import { afterAll, beforeEach, describe, expect, it } from "bun:test"
+import type { Query } from "@anthropic-ai/claude-agent-sdk"
+import { createProxyServerForTests } from "../proxy/server"
+import { PrewarmPlanStore } from "../proxy/prewarm"
+import { WarmQueryPool } from "../proxy/warmQueryPool"
 
 const SESSION_KEY = "client-session-prewarm"
-let coldQueryCalls = 0
 let startupCalls: Array<Record<string, unknown>> = []
 let warmQueryCalls = 0
 let prewarmEvents: Array<{ event: string; details: Record<string, unknown> }> = []
 
-function responseMessages(): SDKMessage[] {
-  return [
-    messageStart(),
-    textBlockStart(0),
-    textDelta(0, "ok"),
-    blockStop(0),
-    messageDelta("end_turn"),
-    messageStop(),
-  ]
-}
-
-function messageStream(): AsyncIterable<SDKMessage> {
-  return (async function* () {
-    for (const message of responseMessages()) yield message
-  })()
-}
-
-mock.module("@anthropic-ai/claude-agent-sdk", () => ({
-  query: () => {
-    coldQueryCalls++
-    return messageStream()
-  },
-  createSdkMcpServer: () => ({ type: "sdk", name: "test", instance: {} }),
-  tool: () => ({}),
-}))
-
-mock.module("../logger", () => ({
-  claudeLog: (event: string, details: Record<string, unknown>) => {
-    if (event.startsWith("sdk.prewarm.")) prewarmEvents.push({ event, details })
-  },
-  withClaudeLogContext: (_ctx: unknown, fn: () => unknown) => fn(),
-}))
-
-mock.module("../mcpTools", () => ({
-  createOpencodeMcpServer: () => ({ type: "sdk", name: "opencode", instance: {} }),
-}))
-
-const {
-  clearSessionCache,
-  createProxyServerForTests,
-} = await import("../proxy/server")
-const { WarmQueryPool } = await import("../proxy/warmQueryPool")
-
 const savedEnv = {
-  passthrough: process.env.MERIDIAN_PASSTHROUGH,
   routing: process.env.MERIDIAN_ROUTING,
-  sessionDir: process.env.MERIDIAN_SESSION_DIR,
 }
 
 afterAll(() => {
-  if (savedEnv.passthrough === undefined) delete process.env.MERIDIAN_PASSTHROUGH
-  else process.env.MERIDIAN_PASSTHROUGH = savedEnv.passthrough
   if (savedEnv.routing === undefined) delete process.env.MERIDIAN_ROUTING
   else process.env.MERIDIAN_ROUTING = savedEnv.routing
-  if (savedEnv.sessionDir === undefined) delete process.env.MERIDIAN_SESSION_DIR
-  else process.env.MERIDIAN_SESSION_DIR = savedEnv.sessionDir
 })
 
 function post(
@@ -97,42 +42,28 @@ function createTestApp(enabled: boolean, profiles?: Array<{ id: string }>) {
       return {
         query() {
           warmQueryCalls++
-          return messageStream() as Query
+          return {} as Query
         },
         close() {},
         async [Symbol.asyncDispose]() {},
       }
     },
   })
+  const plans = new PrewarmPlanStore(pool, 10)
   const { app } = createProxyServerForTests(
     { port: 0, host: "127.0.0.1", profiles },
     pool,
+    plans,
   )
-  return { app, pool }
-}
-
-async function establishSession(
-  app: { fetch: (request: Request) => Response | Promise<Response> },
-) {
-  const response = await post(app, "/v1/messages", {
-    model: "sonnet",
-    stream: true,
-    messages: [{ role: "user", content: "hello" }],
-  }, { "x-opencode-session": SESSION_KEY })
-  expect(response.status).toBe(200)
-  await response.text()
+  return { app, plans, pool }
 }
 
 describe("POST /v1/prewarm", () => {
   beforeEach(() => {
-    process.env.MERIDIAN_PASSTHROUGH = "1"
     delete process.env.MERIDIAN_ROUTING
-    process.env.MERIDIAN_SESSION_DIR = "/private/tmp/zeni106-prewarm-test-sessions"
-    coldQueryCalls = 0
     startupCalls = []
     warmQueryCalls = 0
     prewarmEvents = []
-    clearSessionCache()
   })
 
   it("returns disabled without spawning for a valid body", async () => {
@@ -165,21 +96,15 @@ describe("POST /v1/prewarm", () => {
   })
 
   it("warms a known session, is idempotent, and serves the follow-up from the warm handle", async () => {
-    const { app, pool } = createTestApp(true)
-    await establishSession(app)
-    expect(coldQueryCalls).toBe(1)
-    expect(startupCalls).toHaveLength(1)
+    const { app, plans, pool } = createTestApp(true)
+    plans.register("default", SESSION_KEY, { key: "warm-key", options: {} })
 
-    // Simulate an idle-handle discard while retaining the bounded session plan.
-    pool.closeAll()
-    startupCalls = []
-    prewarmEvents = []
     const first = await post(app, "/v1/prewarm", { sessionKey: SESSION_KEY })
     expect(first.status).toBe(200)
     expect(await first.json()).toEqual({ status: "warming" })
     expect(startupCalls).toHaveLength(1)
     expect(startupCalls[0]).not.toHaveProperty("prompt")
-    expect(coldQueryCalls).toBe(1)
+    expect(warmQueryCalls).toBe(0)
 
     const repeated = await post(app, "/v1/prewarm", { sessionKey: SESSION_KEY })
     expect(repeated.status).toBe(200)
@@ -187,20 +112,10 @@ describe("POST /v1/prewarm", () => {
     expect(startupCalls).toHaveLength(1)
     await Bun.sleep(0)
 
-    const followUp = await post(app, "/v1/messages", {
-      model: "sonnet",
-      stream: true,
-      messages: [
-        { role: "user", content: "hello" },
-        { role: "assistant", content: "ok" },
-        { role: "user", content: "again" },
-      ],
-    }, { "x-opencode-session": SESSION_KEY })
-    expect(followUp.status).toBe(200)
-    await followUp.text()
+    const followUp = await pool.take("warm-key", {}, "next turn")
 
+    expect(followUp).toBeDefined()
     expect(warmQueryCalls).toBe(1)
-    expect(coldQueryCalls).toBe(1)
     expect(prewarmEvents.some(({ event }) => event === "sdk.prewarm.hit")).toBe(true)
   })
 

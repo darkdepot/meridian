@@ -392,13 +392,15 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
 export function createProxyServerForTests(
   config: Partial<ProxyConfig>,
   warmQueryPool: WarmQueryPool,
+  prewarmPlans?: PrewarmPlanStore,
 ): ProxyServer {
-  return createProxyServerWithWarmPool(config, warmQueryPool)
+  return createProxyServerWithWarmPool(config, warmQueryPool, prewarmPlans)
 }
 
 function createProxyServerWithWarmPool(
   config: Partial<ProxyConfig>,
   warmQueryPool: WarmQueryPool,
+  providedPrewarmPlans?: PrewarmPlanStore,
 ): ProxyServer {
   const finalConfig = { ...DEFAULT_PROXY_CONFIG, ...config }
   proxyLogSilent = finalConfig.silent
@@ -418,7 +420,8 @@ function createProxyServerWithWarmPool(
   // invalidation from MCP server re-creation. Key hashes tool name + schema
   // so silently-updated tool definitions force a rebuild.
   const sessionMcpCache = new LRUMap<string, { key: string; mcp: ReturnType<typeof createPassthroughMcpServer> }>(getMaxSessionsLimit())
-  const prewarmPlans = new PrewarmPlanStore(warmQueryPool, getMaxSessionsLimit())
+  const prewarmPlans = providedPrewarmPlans
+    ?? new PrewarmPlanStore(warmQueryPool, getMaxSessionsLimit())
   const prewarmRateLimiter = new FixedWindowRateLimiter(30, 60_000)
 
   // In-flight session stores. The streaming drain design ends the client's
