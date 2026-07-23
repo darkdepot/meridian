@@ -594,14 +594,18 @@ function createProxyServerWithWarmPool(
         // Meridian already uses for session tracking is the assignment key,
         // so a session and its subagent/fork requests land on one account.
         const routingMode = getRoutingMode(process.env.MERIDIAN_ROUTING ?? getSetting("routing"))
+        const agentSessionId = adapter.getSessionId(c, body)
         const profile = resolveProfile(
           finalConfig.profiles,
           finalConfig.defaultProfile,
           c.req.header("x-meridian-profile") || undefined,
           routingMode === "sticky"
-            ? { routingMode, stickySessionKey: adapter.getSessionId(c, body) }
+            ? { routingMode, stickySessionKey: agentSessionId }
             : undefined
         )
+        if (agentSessionId) {
+          releasePrewarmSession = prewarmPlans.beginSession(profile.id, agentSessionId)
+        }
 
         const authStatus = await getClaudeAuthStatusAsync(
           profile.id !== "default" ? profile.id : undefined,
@@ -805,15 +809,11 @@ function createProxyServerWithWarmPool(
         const betas = betaFilter.forwarded
 
         // Session resume: look up cached Claude SDK session and classify mutation
-        const agentSessionId = adapter.getSessionId(c, body)
         // Scope session keys by profile to isolate resume state across accounts.
         // For agents with session IDs (OpenCode): prefix the key.
         // For agents without (Pi): pass profile-scoped workingDirectory to fingerprint lookup.
         const profileSessionId = profile.id !== "default" && agentSessionId
           ? `${profile.id}:${agentSessionId}` : agentSessionId
-        if (agentSessionId) {
-          releasePrewarmSession = prewarmPlans.beginSession(profile.id, agentSessionId)
-        }
         // Use the client-local CWD for fingerprint bucketing so that two
         // independent client projects don't collide on the same first-user-
         // message hash even when they share an SDK cwd on the proxy host.
