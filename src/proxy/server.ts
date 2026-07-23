@@ -1503,8 +1503,8 @@ function createProxyServerWithWarmPool(
               : undefined,
             advisorModel,
           })
-          if (profileSessionId) {
-            prewarmPlans.register(profileSessionId, { key, options: nextQuery.options })
+          if (agentSessionId) {
+            prewarmPlans.register(profile.id, agentSessionId, { key, options: nextQuery.options })
           }
           warmQueryPool.prepare(key, nextQuery.options)
         }
@@ -3475,10 +3475,7 @@ function createProxyServerWithWarmPool(
         ? { routingMode, stickySessionKey: sessionKey }
         : undefined,
     )
-    const profileSessionKey = profile.id !== "default"
-      ? `${profile.id}:${sessionKey}`
-      : sessionKey
-    const result = prewarmPlans.prepare(profileSessionKey)
+    const result = prewarmPlans.prepare(profile.id, sessionKey)
     if (result.status === "unknown_session") {
       return c.json({
         type: "error",

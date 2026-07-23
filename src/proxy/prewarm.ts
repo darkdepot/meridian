@@ -27,9 +27,10 @@ export class PrewarmPlanStore {
     this.maxEntries = Math.max(1, maxEntries)
   }
 
-  register(sessionKey: string, plan: PrewarmPlan): void {
-    this.plans.delete(sessionKey)
-    this.plans.set(sessionKey, plan)
+  register(profileId: string, sessionKey: string, plan: PrewarmPlan): void {
+    const planId = JSON.stringify([profileId, sessionKey])
+    this.plans.delete(planId)
+    this.plans.set(planId, plan)
 
     while (this.plans.size > this.maxEntries) {
       const oldestKey = this.plans.keys().next().value as string | undefined
@@ -38,15 +39,16 @@ export class PrewarmPlanStore {
     }
   }
 
-  prepare(sessionKey: string): PrewarmPlanResult {
+  prepare(profileId: string, sessionKey: string): PrewarmPlanResult {
     if (!this.pool.isEnabled) return { status: "disabled" }
 
-    const plan = this.plans.get(sessionKey)
+    const planId = JSON.stringify([profileId, sessionKey])
+    const plan = this.plans.get(planId)
     if (!plan) return { status: "unknown_session" }
 
     // Refresh recency on successful lookup.
-    this.plans.delete(sessionKey)
-    this.plans.set(sessionKey, plan)
+    this.plans.delete(planId)
+    this.plans.set(planId, plan)
     return { status: this.pool.prepare(plan.key, plan.options) }
   }
 }
