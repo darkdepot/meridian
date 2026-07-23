@@ -9,7 +9,7 @@ import {
   textDelta,
 } from "./helpers"
 
-const TEST_API_KEY = "placeholder-prewarm-api-key"
+const TEST_API_KEY = "placeholder"
 const SESSION_KEY = "client-session-prewarm"
 let coldQueryCalls = 0
 let startupCalls: Array<Record<string, unknown>> = []
