@@ -156,6 +156,70 @@ describe("WarmQueryPool", () => {
     pool.closeAll()
   })
 
+  test("discards idle handles when dynamically disabled", async () => {
+    let enabled = true
+    const warm = fakeWarm()
+    const pool = new WarmQueryPool({
+      enabled: () => enabled,
+      start: async () => warm,
+    })
+
+    pool.prepare("stale-after-disable", {})
+    await Promise.resolve()
+    expect(pool.size).toBe(1)
+
+    enabled = false
+    expect(pool.prepare("disabled", {})).toBe("disabled")
+    await Bun.sleep(0)
+    expect(pool.size).toBe(0)
+    expect(warm.closeCalls).toBeGreaterThan(0)
+
+    enabled = true
+    expect(await pool.take("stale-after-disable", {}, "next turn")).toBeUndefined()
+  })
+
+  test("does not take a handle disabled during its startup microtask", async () => {
+    let enabled = true
+    let resolveWarm!: (warm: WarmQuery) => void
+    const warm = fakeWarm()
+    const pool = new WarmQueryPool({
+      enabled: () => enabled,
+      start: () => new Promise((resolve) => {
+        resolveWarm = resolve
+      }),
+    })
+
+    pool.prepare("disable-race", {})
+    const take = pool.take("disable-race", {}, "next turn")
+    enabled = false
+    resolveWarm(warm)
+
+    expect(await take).toBeUndefined()
+    await Bun.sleep(0)
+    expect(warm.closeCalls).toBeGreaterThan(0)
+  })
+
+  test("discards and closes an unused query after its TTL", async () => {
+    const events: Array<{ event: string; details: Record<string, unknown> }> = []
+    const warm = fakeWarm()
+    const pool = new WarmQueryPool({
+      enabled: true,
+      ttlMs: 1_000,
+      start: async () => warm,
+      onEvent: (event, details) => events.push({ event, details }),
+    })
+
+    pool.prepare("expires", {})
+    await Bun.sleep(1_100)
+
+    expect(pool.size).toBe(0)
+    expect(warm.closeCalls).toBeGreaterThan(0)
+    expect(events).toContainEqual({
+      event: "discarded",
+      details: { key: "expires", reason: "ttl", size: 0 },
+    })
+  })
+
   test("hashes warm keys without retaining raw prompt context", () => {
     const a = createWarmQueryKey({ model: "sonnet", system: "private context" })
     const b = createWarmQueryKey({ model: "sonnet", system: "private context" })

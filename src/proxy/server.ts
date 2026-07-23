@@ -82,6 +82,7 @@ import { getSetting } from "./settings"
 import { filterBetasForProfile, getBetaPolicyFromEnv } from "./betas"
 import { createFileChangeHook, extractFileChangesFromMessages, formatFileChangeSummary, type FileChange } from "./fileChanges"
 import { createWarmQueryKey, WarmQueryPool } from "./warmQueryPool"
+import { FixedWindowRateLimiter, PrewarmPlanStore } from "./prewarm"
 import { detectTokenAnomalies, formatAnomalyAlerts, type TokenSnapshot } from "./tokenHealth"
 import { computeCacheHitRate, formatUsageSummary } from "./tokenUsage"
 import { sanitizeTextContent } from "./sanitize"
@@ -317,7 +318,7 @@ function plog(message: string): void {
 }
 
 const sdkWarmQueryPool = new WarmQueryPool({
-  enabled: envBool("SDK_PREWARM"),
+  enabled: () => envBool("SDK_PREWARM"),
   maxEntries: envInt("SDK_PREWARM_MAX", 4),
   ttlMs: envInt("SDK_PREWARM_TTL_MS", 120_000),
   initializeTimeoutMs: envInt("SDK_PREWARM_INIT_TIMEOUT_MS", 15_000),
@@ -384,6 +385,23 @@ function checkTokenHealth(
 }
 
 export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServer {
+  return createProxyServerWithWarmPool(config, sdkWarmQueryPool)
+}
+
+/** Build an isolated app around a caller-owned warm pool for integration tests. */
+export function createProxyServerForTests(
+  config: Partial<ProxyConfig>,
+  warmQueryPool: WarmQueryPool,
+  prewarmPlans?: PrewarmPlanStore,
+): ProxyServer {
+  return createProxyServerWithWarmPool(config, warmQueryPool, prewarmPlans)
+}
+
+function createProxyServerWithWarmPool(
+  config: Partial<ProxyConfig>,
+  warmQueryPool: WarmQueryPool,
+  providedPrewarmPlans?: PrewarmPlanStore,
+): ProxyServer {
   const finalConfig = { ...DEFAULT_PROXY_CONFIG, ...config }
   proxyLogSilent = finalConfig.silent
   const serverVersion = finalConfig.version ?? "unknown"
@@ -402,6 +420,9 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
   // invalidation from MCP server re-creation. Key hashes tool name + schema
   // so silently-updated tool definitions force a rebuild.
   const sessionMcpCache = new LRUMap<string, { key: string; mcp: ReturnType<typeof createPassthroughMcpServer> }>(getMaxSessionsLimit())
+  const prewarmPlans = providedPrewarmPlans
+    ?? new PrewarmPlanStore(warmQueryPool, getMaxSessionsLimit())
+  const prewarmRateLimiter = new FixedWindowRateLimiter(30, 60_000)
 
   // In-flight session stores. The streaming drain design ends the client's
   // response at the turn boundary (fast), while deny persistence + the early
@@ -479,7 +500,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
         status: "ok",
         service: "meridian",
         format: "anthropic",
-        endpoints: ["/v1/messages", "/messages", "/v1/chat/completions", "/v1/responses", "/v1/models", "/v1/design/*", "/design-login", "/telemetry", "/metrics", "/health"]
+        endpoints: ["/v1/messages", "/v1/prewarm", "/messages", "/v1/chat/completions", "/v1/responses", "/v1/models", "/v1/design/*", "/design-login", "/telemetry", "/metrics", "/health"]
       })
     }
     return c.html(landingHtml)
@@ -518,6 +539,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
     const requestStartAt = Date.now()
     const requestAbort = linkRequestAbort(c.req.raw.signal)
     let streamOwnsAbortLink = false
+    let releasePrewarmSession = (): void => {}
 
     return withClaudeLogContext({ requestId: requestMeta.requestId, endpoint: requestMeta.endpoint }, async () => {
       // Hoist adapter detection before try so it's available in the catch block for telemetry
@@ -572,14 +594,18 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
         // Meridian already uses for session tracking is the assignment key,
         // so a session and its subagent/fork requests land on one account.
         const routingMode = getRoutingMode(process.env.MERIDIAN_ROUTING ?? getSetting("routing"))
+        const agentSessionId = adapter.getSessionId(c, body)
         const profile = resolveProfile(
           finalConfig.profiles,
           finalConfig.defaultProfile,
           c.req.header("x-meridian-profile") || undefined,
           routingMode === "sticky"
-            ? { routingMode, stickySessionKey: adapter.getSessionId(c, body) }
+            ? { routingMode, stickySessionKey: agentSessionId }
             : undefined
         )
+        if (agentSessionId) {
+          releasePrewarmSession = prewarmPlans.beginSession(profile.id, agentSessionId)
+        }
 
         const authStatus = await getClaudeAuthStatusAsync(
           profile.id !== "default" ? profile.id : undefined,
@@ -783,7 +809,6 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
         const betas = betaFilter.forwarded
 
         // Session resume: look up cached Claude SDK session and classify mutation
-        const agentSessionId = adapter.getSessionId(c, body)
         // Scope session keys by profile to isolate resume state across accounts.
         // For agents with session IDs (OpenCode): prefix the key.
         // For agents without (Pi): pass profile-scoped workingDirectory to fingerprint lookup.
@@ -1485,7 +1510,10 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
               : undefined,
             advisorModel,
           })
-          sdkWarmQueryPool.prepare(key, nextQuery.options)
+          if (agentSessionId) {
+            prewarmPlans.register(profile.id, agentSessionId, { key, options: nextQuery.options })
+          }
+          warmQueryPool.prepare(key, nextQuery.options)
         }
 
         if (!stream) {
@@ -2293,7 +2321,7 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
                       advisorModel,
                     }, requestAbort.controller)
                     const warmedQuery = !warmAttemptUsed && !busySessionFork
-                      ? await sdkWarmQueryPool.take(
+                      ? await warmQueryPool.take(
                           warmKeyFor(resumeSessionId),
                           builtQuery.options,
                           builtQuery.prompt,
@@ -3325,10 +3353,12 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
                 streamClosed = true
               }
             } finally {
+              releasePrewarmSession()
               requestAbort.detach()
             }
           },
           cancel(reason) {
+            releasePrewarmSession()
             requestAbort.abort(reason)
             requestAbort.detach()
           },
@@ -3399,7 +3429,10 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
           { status: classified.status, headers: { "Content-Type": "application/json" } }
         )
       } finally {
-        if (!streamOwnsAbortLink) requestAbort.detach()
+        if (!streamOwnsAbortLink) {
+          releasePrewarmSession()
+          requestAbort.detach()
+        }
       }
     })
   }
@@ -3416,6 +3449,74 @@ export function createProxyServer(config: Partial<ProxyConfig> = {}): ProxyServe
       releaseSession()
     }
   }
+
+  app.post("/v1/prewarm", async (c) => {
+    let body: unknown
+    try {
+      body = await c.req.json()
+    } catch {
+      return c.json({
+        type: "error",
+        error: { type: "invalid_request_error", message: "Body must be valid JSON" },
+      }, 400)
+    }
+
+    const sessionKey = (body as { sessionKey?: unknown } | null)?.sessionKey
+    if (typeof sessionKey !== "string" || sessionKey.trim().length === 0) {
+      return c.json({
+        type: "error",
+        error: { type: "invalid_request_error", message: "sessionKey must be a non-empty string" },
+      }, 400)
+    }
+
+    const rateLimit = prewarmRateLimiter.consume()
+    if (!rateLimit.allowed) {
+      c.header("Retry-After", String(rateLimit.retryAfterSeconds))
+      return c.json({
+        type: "error",
+        error: { type: "rate_limit_error", message: "Prewarm request rate limit exceeded" },
+      }, 429)
+    }
+
+    const routingMode = getRoutingMode(process.env.MERIDIAN_ROUTING ?? getSetting("routing"))
+    const requestedProfile = c.req.header("x-meridian-profile") || undefined
+    if (
+      !requestedProfile &&
+      routingMode !== "sticky" &&
+      getEffectiveProfiles(finalConfig.profiles).length > 1
+    ) {
+      return c.json({
+        type: "error",
+        error: {
+          type: "invalid_request_error",
+          message: "x-meridian-profile is required for prewarm with multiple profiles unless sticky routing is enabled",
+        },
+      }, 400)
+    }
+    const profile = resolveProfile(
+      finalConfig.profiles,
+      finalConfig.defaultProfile,
+      requestedProfile,
+      routingMode === "sticky"
+        ? { routingMode, stickySessionKey: sessionKey }
+        : undefined,
+    )
+    const result = prewarmPlans.prepare(profile.id, sessionKey)
+    if (result.status === "busy_session") {
+      return c.json({
+        type: "error",
+        error: { type: "conflict_error", message: "Session is currently processing a request" },
+      }, 409)
+    }
+    if (result.status === "unknown_session") {
+      return c.json({
+        type: "error",
+        error: { type: "not_found_error", message: "Unknown sessionKey for the selected profile" },
+      }, 404)
+    }
+
+    return c.json({ status: result.status })
+  })
 
   app.post("/v1/messages", (c) => handleWithQueue(c, "/v1/messages"))
   app.post("/messages", (c) => handleWithQueue(c, "/messages"))
