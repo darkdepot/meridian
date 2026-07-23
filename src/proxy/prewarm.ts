@@ -8,6 +8,7 @@ interface PrewarmPlan {
 
 export type PrewarmPlanResult =
   | { status: WarmQueryPrepareStatus }
+  | { status: "busy_session" }
   | { status: "unknown_session" }
 
 /**
@@ -18,6 +19,7 @@ export type PrewarmPlanResult =
  * rewarm any recently active session after its idle handle expires.
  */
 export class PrewarmPlanStore {
+  private readonly activeSessions = new Map<string, number>()
   private readonly plans = new Map<string, PrewarmPlan>()
   private readonly maxEntries: number
   private readonly pool: WarmQueryPool
@@ -25,6 +27,19 @@ export class PrewarmPlanStore {
   constructor(pool: WarmQueryPool, maxEntries: number) {
     this.pool = pool
     this.maxEntries = Math.max(1, maxEntries)
+  }
+
+  beginSession(profileId: string, sessionKey: string): () => void {
+    const planId = JSON.stringify([profileId, sessionKey])
+    this.activeSessions.set(planId, (this.activeSessions.get(planId) ?? 0) + 1)
+    let finished = false
+    return () => {
+      if (finished) return
+      finished = true
+      const remaining = (this.activeSessions.get(planId) ?? 1) - 1
+      if (remaining > 0) this.activeSessions.set(planId, remaining)
+      else this.activeSessions.delete(planId)
+    }
   }
 
   register(profileId: string, sessionKey: string, plan: PrewarmPlan): void {
@@ -45,6 +60,7 @@ export class PrewarmPlanStore {
     const planId = JSON.stringify([profileId, sessionKey])
     const plan = this.plans.get(planId)
     if (!plan) return { status: "unknown_session" }
+    if (this.activeSessions.has(planId)) return { status: "busy_session" }
 
     // Refresh recency on successful lookup.
     this.plans.delete(planId)

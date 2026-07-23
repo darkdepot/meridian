@@ -536,6 +536,7 @@ function createProxyServerWithWarmPool(
     const requestStartAt = Date.now()
     const requestAbort = linkRequestAbort(c.req.raw.signal)
     let streamOwnsAbortLink = false
+    let releasePrewarmSession = (): void => {}
 
     return withClaudeLogContext({ requestId: requestMeta.requestId, endpoint: requestMeta.endpoint }, async () => {
       // Hoist adapter detection before try so it's available in the catch block for telemetry
@@ -807,6 +808,9 @@ function createProxyServerWithWarmPool(
         // For agents without (Pi): pass profile-scoped workingDirectory to fingerprint lookup.
         const profileSessionId = profile.id !== "default" && agentSessionId
           ? `${profile.id}:${agentSessionId}` : agentSessionId
+        if (agentSessionId) {
+          releasePrewarmSession = prewarmPlans.beginSession(profile.id, agentSessionId)
+        }
         // Use the client-local CWD for fingerprint bucketing so that two
         // independent client projects don't collide on the same first-user-
         // message hash even when they share an SDK cwd on the proxy host.
@@ -3346,10 +3350,12 @@ function createProxyServerWithWarmPool(
                 streamClosed = true
               }
             } finally {
+              releasePrewarmSession()
               requestAbort.detach()
             }
           },
           cancel(reason) {
+            releasePrewarmSession()
             requestAbort.abort(reason)
             requestAbort.detach()
           },
@@ -3420,7 +3426,10 @@ function createProxyServerWithWarmPool(
           { status: classified.status, headers: { "Content-Type": "application/json" } }
         )
       } finally {
-        if (!streamOwnsAbortLink) requestAbort.detach()
+        if (!streamOwnsAbortLink) {
+          releasePrewarmSession()
+          requestAbort.detach()
+        }
       }
     })
   }
@@ -3490,6 +3499,12 @@ function createProxyServerWithWarmPool(
         : undefined,
     )
     const result = prewarmPlans.prepare(profile.id, sessionKey)
+    if (result.status === "busy_session") {
+      return c.json({
+        type: "error",
+        error: { type: "conflict_error", message: "Session is currently processing a request" },
+      }, 409)
+    }
     if (result.status === "unknown_session") {
       return c.json({
         type: "error",

@@ -32,6 +32,19 @@ describe("PrewarmPlanStore", () => {
     pool.closeAll()
   })
 
+  test("rejects prewarm while the same profile session is active", () => {
+    const pool = new WarmQueryPool({ enabled: true, start: async () => fakeWarm() })
+    const plans = new PrewarmPlanStore(pool, 2)
+    plans.register("default", "known", { key: "warm-key", options: {} })
+    const finish = plans.beginSession("default", "known")
+
+    expect(plans.prepare("default", "known")).toEqual({ status: "busy_session" })
+    expect(pool.size).toBe(0)
+    finish()
+    expect(plans.prepare("default", "known")).toEqual({ status: "warming" })
+    pool.closeAll()
+  })
+
   test("keeps profile and session identifiers collision-free", () => {
     const pool = new WarmQueryPool({ enabled: true, start: async () => fakeWarm() })
     const plans = new PrewarmPlanStore(pool, 2)

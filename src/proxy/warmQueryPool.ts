@@ -122,11 +122,11 @@ export class WarmQueryPool {
   }
 
   get isEnabled(): boolean {
-    return this.enabled()
+    return this.checkEnabled()
   }
 
   prepare(key: string, options: Options): WarmQueryPrepareStatus {
-    if (!this.isEnabled) return "disabled"
+    if (!this.checkEnabled()) return "disabled"
     if (this.entries.has(key)) return "already_warm"
 
     while (this.entries.size >= this.maxEntries) {
@@ -183,7 +183,7 @@ export class WarmQueryPool {
   }
 
   async take(key: string | undefined, options: Options, prompt: Prompt): Promise<Query | undefined> {
-    if (!this.isEnabled || !key) return undefined
+    if (!this.checkEnabled() || !key) return undefined
     const entry = this.entries.get(key)
     if (!entry) {
       this.onEvent?.("miss", { key: key.slice(0, 12) })
@@ -236,6 +236,12 @@ export class WarmQueryPool {
 
   closeAll(): void {
     for (const key of [...this.entries.keys()]) this.discard(key, "shutdown")
+  }
+
+  private checkEnabled(): boolean {
+    if (this.enabled()) return true
+    for (const key of [...this.entries.keys()]) this.discard(key, "disabled")
+    return false
   }
 
   private discard(key: string, reason: string): void {

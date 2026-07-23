@@ -156,6 +156,28 @@ describe("WarmQueryPool", () => {
     pool.closeAll()
   })
 
+  test("discards idle handles when dynamically disabled", async () => {
+    let enabled = true
+    const warm = fakeWarm()
+    const pool = new WarmQueryPool({
+      enabled: () => enabled,
+      start: async () => warm,
+    })
+
+    pool.prepare("stale-after-disable", {})
+    await Promise.resolve()
+    expect(pool.size).toBe(1)
+
+    enabled = false
+    expect(pool.prepare("disabled", {})).toBe("disabled")
+    await Bun.sleep(0)
+    expect(pool.size).toBe(0)
+    expect(warm.closeCalls).toBeGreaterThan(0)
+
+    enabled = true
+    expect(await pool.take("stale-after-disable", {}, "next turn")).toBeUndefined()
+  })
+
   test("discards and closes an unused query after its TTL", async () => {
     const events: Array<{ event: string; details: Record<string, unknown> }> = []
     const warm = fakeWarm()
